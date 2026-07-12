@@ -1376,13 +1376,22 @@ function applyRealBanzuke() {
 function buildSimFromReal(uptoDay) {
   const key = REAL.bashoKey;
   const rikishi = {};
+  // 怪我明けB条件: 前場所5日以上休場 → 場所を通して×2
+  const carry = REAL.injuredCarry || [];
   RIKISHI.forEach(r => {
-    rikishi[r.id] = { wins: 0, losses: 0, form: 0, injured: false, kinboshi: 0, opponents: [] };
+    rikishi[r.id] = { wins: 0, losses: 0, form: 0, injured: carry.includes(r.name), kinboshi: 0, opponents: [] };
   });
+  const kyujoLog = REAL.kyujoLog || {};
   const days = [null];
   for (let d = 1; d <= Math.min(uptoDay, 15); d++) {
     const src = REAL.days[String(d)] || REAL.days[d];
     if (!src) { days[d] = null; continue; }
+    // 怪我明けC条件: 今場所休場記録のある力士が再出場 → その日から×2
+    RIKISHI.forEach(r => {
+      if (rikishi[r.id].injured) return;
+      const wasOut = Object.entries(kyujoLog).some(([kd, names]) => Number(kd) < d && names.includes(r.name));
+      if (wasOut && src.some(x => x.e === r.name || x.w === r.name)) rikishi[r.id].injured = true;
+    });
     const rngD = rngOf(key + "::day" + d);
     const bouts = [];
     src.forEach(x => {
