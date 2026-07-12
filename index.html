@@ -285,12 +285,15 @@ function rankPoint(rank) {
   if (rank === "O") return 14;
   if (rank === "S") return 12;
   if (rank === "K") return 11;
+  if (rank[0] === "J") return 0; // 十両
   const m = parseInt(rank.slice(1), 10); // M1=10 … M10=1, M11以下=0
   return Math.max(0, 11 - m);
 }
 function rankLabel(rank) {
   const map = { Y: "横綱", O: "大関", S: "関脇", K: "小結" };
-  return map[rank] || ("前頭" + rank.slice(1) + "枚目");
+  if (map[rank]) return map[rank];
+  if (rank[0] === "J") return "十両" + (rank.slice(1) === "1" ? "筆頭" : rank.slice(1) + "枚目");
+  return "前頭" + (rank.slice(1) === "1" ? "筆頭" : rank.slice(1) + "枚目");
 }
 
 // 決まり手（予想対象 4.5 + 演出用）
@@ -799,12 +802,18 @@ function load() {
     G = JSON.parse(raw);
     G.stats = Object.assign(DEFAULT_STATS(), G.stats || {});
     G.bets = G.bets || [];
+    // 旧セーブデータ移行: 推し力士をIDから名前に
+    if (!G.profile.oshiName) {
+      const r = RIKISHI.find(x => x.id === G.profile.oshiId);
+      G.profile.oshiName = r ? r.name : RIKISHI[0].name;
+    }
     return true;
   } catch (e) { return false; }
 }
-function newGame(shikona, ichimon, oshiId) {
+function newGame(shikona, ichimon, oshiName) {
+  const oshi = RIKISHI.find(r => r.name === oshiName) || RIKISHI[0];
   G = {
-    profile: { shikona, ichimon, oshiId, title: "t1_01" },
+    profile: { shikona, ichimon, oshiName: oshi.name, oshiId: oshi.id, title: "t1_01" },
     points: START_POINTS,
     achievements: ["t1_01"],
     stats: DEFAULT_STATS(),
@@ -829,15 +838,19 @@ function newGame(shikona, ichimon, oshiId) {
 // ============================================================
 async function ensureBashoState() {
   const info = bashoInfo();
+  // 千秋楽を締められるか（実データモードでは15日目の結果が揃うまで待つ）
+  const canFinish = () => DATA_MODE !== "real" || !REAL || REAL.bashoKey !== G.bashoKey || realDayResolved(15);
   // 前の場所が終わっていたら締める
   if (G.bashoKey && (!info.current || info.current.key !== G.bashoKey) && !G.finishedProcessed) {
-    SIM = buildSim(G.bashoKey, 15);
-    await processFinish();
+    SIM = simFor(G.bashoKey, 15);
+    settlePending();
+    if (canFinish()) await processFinish();
+    else G.finishedProcessed = true; // データ皆無なら諦めて締める
   }
   if (G.bashoKey && info.current && info.current.key === G.bashoKey && resultsReady(15) && !G.finishedProcessed) {
-    SIM = buildSim(G.bashoKey, 15);
+    SIM = simFor(G.bashoKey, 15);
     settlePending();
-    await processFinish();
+    if (canFinish()) await processFinish();
   }
   // 新しい場所が始まっていたら参加
   if (info.current && G.bashoKey !== info.current.key) {
@@ -852,10 +865,10 @@ async function ensureBashoState() {
   }
   // 今場所のシミュレーション構築 + 未精算ベットの精算
   if (info.current && G.bashoKey === info.current.key && !G.finishedProcessed) {
-    const upto = Math.min(15, info.current.day + (info.now.hm >= RESULT_HM ? 1 : 0));
-    SIM = buildSim(G.bashoKey, upto);
+    const upto = Math.min(15, info.current.day + 1);
+    SIM = simFor(G.bashoKey, upto);
     settlePending();
-    if (resultsReady(15) && !G.finishedProcessed) await processFinish();
+    if (resultsReady(15) && !G.finishedProcessed && (DATA_MODE !== "real" || realDayResolved(15))) await processFinish();
   }
   checkAchievements();
   save();
@@ -912,7 +925,13 @@ function cancelBet(day, boutIdx) {
 // ============================================================
 function settlePending() {
   const s = G.stats;
-  const daysToSettle = [...new Set(G.bets.filter(x => !x.settled && SIM.days[x.day] && SIM.days[x.day].torikumi[0].result).map(x => x.day))].sort((a, b) => a - b);
+  const info = bashoInfo();
+  // その日が「とっくに過ぎた」か（結果が出ないベットの返還判定用）
+  const dayLongPast = day => !info.current || info.current.key !== SIM.key || info.current.day > day + 1;
+  const daysToSettle = [...new Set(G.bets.filter(x =>
+    !x.settled && SIM.days[x.day] &&
+    (SIM.days[x.day].torikumi.some(bt => bt.result) || dayLongPast(x.day))
+  ).map(x => x.day))].sort((a, b) => a - b);
   const summaries = [];
   daysToSettle.forEach(day => {
     const dayBets = G.bets.filter(x => x.day === day && !x.settled);
@@ -922,6 +941,18 @@ function settlePending() {
     let allFav = dayBets.length >= 5, allDog = dayBets.length >= 5;
     dayBets.forEach(bet => {
       const bout = torikumi[bet.bout];
+      // 結果未確定: データ待ちなら保留、日が過ぎていれば返還（不戦・取組消滅など）
+      if (!bout || !bout.result) {
+        if (bout && dayLongPast(day)) {
+          bet.settled = true;
+          const refund = bet.amount + (bet.kAmount || 0);
+          G.points += refund;
+          s.totalBets = Math.max(0, s.totalBets - 1);
+          G.betsThisBasho = Math.max(0, G.betsThisBasho - 1);
+          details.push({ bet, bout, refund });
+        }
+        return;
+      }
       const pick = bet.side === "east" ? bout.east : bout.west;
       const other = bet.side === "east" ? bout.west : bout.east;
       const pickOdds = bet.side === "east" ? bout.oddsE : bout.oddsW;
@@ -1284,6 +1315,120 @@ function currentTitleName() {
 function fmt(n) { return n.toLocaleString("ja-JP"); }
 function pickRand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 // ============================================================
+// トト相撲 ONLINE — 実データモード（data/basho.json 読込）
+// GitHub Actions がスポナビから取得した実際の取組・結果を使う。
+// データが無い/古い場合は自動的にシミュレーションにフォールバック。
+// ============================================================
+
+const DATA_URL = "data/basho.json";
+let REAL = null;          // 実データ
+let DATA_MODE = "sim";    // "real" | "sim"
+
+// 実在力士の一門マップ（判明分・適宜修正可。未登録は名前ハッシュで自動割当）
+const ICHIMON_MAP = {
+  "豊昇龍": "時津風", "大の里": "二所ノ関", "琴櫻": "二所ノ関", "霧島": "時津風",
+  "王鵬": "二所ノ関", "隆の勝": "二所ノ関", "熱海富士": "伊勢ヶ濱", "豪ノ山": "二所ノ関",
+  "美ノ海": "出羽海", "琴勝峰": "二所ノ関", "平戸海": "出羽海", "安青錦": "伊勢ヶ濱",
+  "大栄翔": "時津風", "宇良": "出羽海", "一山本": "二所ノ関", "正代": "時津風",
+  "欧勝馬": "出羽海", "若元春": "時津風", "高安": "二所ノ関", "狼雅": "二所ノ関",
+  "朝乃山": "高砂", "翔猿": "出羽海", "千代翔馬": "高砂", "御嶽海": "出羽海",
+  "錦富士": "伊勢ヶ濱", "阿炎": "出羽海", "金峰山": "二所ノ関", "尊富士": "伊勢ヶ濱",
+  "阿武剋": "二所ノ関", "獅司": "時津風", "藤ノ川": "時津風", "朝白龍": "高砂",
+  "朝紅龍": "高砂", "玉鷲": "二所ノ関", "明生": "時津風", "湘南乃海": "高砂",
+  "翠富士": "伊勢ヶ濱", "白熊": "二所ノ関", "時疾風": "時津風", "竜電": "高砂",
+  "佐田の海": "出羽海", "友風": "二所ノ関", "錦木": "伊勢ヶ濱", "炎鵬": "伊勢ヶ濱"
+};
+
+function ridOf(name) { return 100000 + (hashStr("rid::" + name) % 800000); }
+
+async function loadRealData() {
+  try {
+    const res = await fetch(DATA_URL + "?t=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) return;
+    const j = await res.json();
+    if (!j || !j.bashoKey || !j.banzuke || j.banzuke.length < 20 || !j.days) return;
+    const info = bashoInfo();
+    const relevant = (info.current && j.bashoKey === info.current.key) || (G && G.bashoKey === j.bashoKey);
+    if (!relevant && info.current) return; // 古いデータは使わない
+    REAL = j;
+    DATA_MODE = "real";
+  } catch (e) { console.warn("実データ読込失敗（シミュレーションで継続）:", e); }
+}
+
+// RIKISHI配列を実番付で置き換える
+function applyRealBanzuke() {
+  if (!REAL) return;
+  const rows = REAL.banzuke.filter(b => /^([YOSK]|M\d+|J\d+)$/.test(b.rank));
+  if (rows.length < 20) return;
+  RIKISHI.length = 0;
+  rows.forEach(b => RIKISHI.push({
+    id: ridOf(b.name), name: b.name, rank: b.rank, side: "",
+    ichimon: ICHIMON_MAP[b.name] || ICHIMON[hashStr("im::" + b.name) % 5]
+  }));
+  // 推し力士を名前で復元
+  if (G) {
+    const r = RIKISHI.find(x => x.name === G.profile.oshiName);
+    G.profile.oshiId = r ? r.id : null;
+  }
+}
+
+// 実データから SIM を構築（buildSim と同じ形を返す）
+function buildSimFromReal(uptoDay) {
+  const key = REAL.bashoKey;
+  const rikishi = {};
+  RIKISHI.forEach(r => {
+    rikishi[r.id] = { wins: 0, losses: 0, form: 0, injured: false, kinboshi: 0, opponents: [] };
+  });
+  const days = [null];
+  for (let d = 1; d <= Math.min(uptoDay, 15); d++) {
+    const src = REAL.days[String(d)] || REAL.days[d];
+    if (!src) { days[d] = null; continue; }
+    const rngD = rngOf(key + "::day" + d);
+    const bouts = [];
+    src.forEach(x => {
+      const e = RIKISHI.find(r => r.name === x.e), w = RIKISHI.find(r => r.name === x.w);
+      if (!e || !w) return;
+      const bout = makeBoutDet(e, w, rikishi);
+      if (x.win) {
+        const winner = x.win === "e" ? e.id : w.id;
+        const loser = x.win === "e" ? w.id : e.id;
+        bout.result = { winner, kimarite: x.k || "不明" };
+        rikishi[winner].wins++; rikishi[loser].losses++;
+        rikishi[e.id].opponents.push(w.id); rikishi[w.id].opponents.push(e.id);
+        const lr = rk(loser), wr = rk(winner);
+        if ((lr.rank === "Y" || lr.rank === "O") && wr.rank[0] === "M") rikishi[winner].kinboshi++;
+      }
+      bouts.push(bout);
+    });
+    // 懸賞一番（シードで決定・全員共通）
+    if (bouts.length) {
+      let best = -1, bi = 0;
+      bouts.forEach((bt, i) => {
+        const sc = rankPoint(rk(bt.east).rank) + rankPoint(rk(bt.west).rank) + rngD() * 6;
+        if (sc > best) { best = sc; bi = i; }
+      });
+      bouts[bi].kensho = true;
+    }
+    days[d] = bouts.length ? { day: d, torikumi: bouts } : null;
+  }
+  return { key, rikishi, days };
+}
+
+// 指定日の実結果が出揃っているか
+function realDayResolved(day) {
+  if (!REAL) return false;
+  const src = REAL.days[String(day)] || REAL.days[day];
+  if (!src || !src.length) return false;
+  const resolved = src.filter(x => x.win).length;
+  return resolved >= Math.max(1, src.length - 2); // 不戦・保留を許容
+}
+
+// key に対する SIM を構築（実データ優先）
+function simFor(key, uptoDay) {
+  if (DATA_MODE === "real" && REAL && REAL.bashoKey === key) return buildSimFromReal(uptoDay);
+  return buildSim(key, uptoDay);
+}
+// ============================================================
 // トト相撲 ONLINE — UI
 // ============================================================
 
@@ -1294,7 +1439,10 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<":
 
 // ---------------- 起動 ----------------
 async function init() {
-  if (!load()) { renderOnboarding(); return; }
+  const hasGame = load();
+  await loadRealData();
+  applyRealBanzuke();
+  if (!hasGame) { renderOnboarding(); return; }
   await sbInit();
   await ensureBashoState();
   renderAll();
@@ -1372,20 +1520,27 @@ function renderTorikumi() {
 
   const day = info.current.day, hm = info.now.hm;
   const betDay = bettableDay();
-  let html = configWarning() + `
+  const modeBanner = DATA_MODE === "real"
+    ? `<p class="muted center" style="margin-bottom:8px">🛰 実データ連動中（スポーツナビ・毎夕自動更新）</p>`
+    : `<p class="muted center" style="margin-bottom:8px">🎲 シミュレーションモード（実データ未取得）</p>`;
+  let html = configWarning() + modeBanner + `
     <div class="bonus-row">
       <button class="bonus-btn" onclick="onChanko()" ${canChanko() ? "" : "disabled"}><span class="big">🍲</span>ちゃんこ${canChanko() ? "<br>+1,000合" : "<br>本日済み"}</button>
       <button class="bonus-btn" onclick="openQuiz()"><span class="big">📖</span>相撲クイズ<br>500〜1,000合</button>
     </div>`;
 
-  // 本日の結果（16時以降）
-  if (hm >= RESULT_HM && SIM.days[day] && SIM.days[day].torikumi[0].result) {
+  // 本日の結果（16時以降・実データは反映され次第）
+  if (hm >= RESULT_HM && SIM.days[day] && SIM.days[day].torikumi.some(bt => bt.result)) {
     html += `<div class="day-banner">🥁 ${day}日目 ${day === 8 ? "中日" : day === 15 ? "千秋楽" : ""} の結果</div>`;
     html += resultListHTML(SIM.days[day].torikumi);
+  } else if (hm >= RESULT_HM && DATA_MODE === "real" && day <= 15 && !G.finishedProcessed) {
+    html += `<div class="offseason-note">📡 ${day}日目の結果を取得中です。<br>結果は毎日18時過ぎに自動反映されます。しばらくしてから再読み込みしてください。</div>`;
   }
 
   // 予想受付
-  if (betDay && SIM.days[betDay]) {
+  if (betDay && !SIM.days[betDay]) {
+    html += `<div class="offseason-note">📋 ${betDay}日目の取組は発表待ちです。<br>取組が発表され、データが更新されると予想できるようになります。</div>`;
+  } else if (betDay && SIM.days[betDay]) {
     const remain = DEADLINE_HM - hm;
     const deadline = betDay === day
       ? `本日15:30締切（あと${Math.floor(remain / 60)}時間${remain % 60}分）`
@@ -1405,10 +1560,13 @@ function renderTorikumi() {
 
 function resultListHTML(torikumi) {
   let html = `<div class="card" style="padding:8px 12px">`;
-  torikumi.forEach((bt, i) => {
+  torikumi.forEach(bt => {
+    if (!bt.result) {
+      html += `<div class="result-line"><span class="km">${esc(rk(bt.east).name)} × ${esc(rk(bt.west).name)} — 結果待ち</span>${bt.kensho ? "<span>🚩</span>" : ""}</div>`;
+      return;
+    }
     const w = rk(bt.result.winner);
     const l = rk(bt.result.winner === bt.east ? bt.west : bt.east);
-    const myBet = G.bets.find(x => x.settled && x.bout === i) || null;
     html += `<div class="result-line"><span><b>${esc(w.name)}</b> <span class="km">（${esc(bt.result.kimarite)}）</span> ${esc(l.name)}</span>${bt.kensho ? "<span>🚩</span>" : ""}</div>`;
   });
   return html + `</div>`;
@@ -1502,6 +1660,11 @@ function showSettleModal(summaries) {
   summaries.forEach(sm => {
     html += `<p style="font-weight:bold;color:var(--maroon);margin-top:8px">${sm.day}日目（${sm.betCount}ベット ${sm.dayHits}的中）</p>`;
     sm.details.forEach(d => {
+      if (d.refund !== undefined) {
+        const pickName = rk(d.bet.side === "east" ? d.bout.east : d.bout.west).name;
+        html += `<div class="result-line"><span>△ <b>${esc(pickName)}</b> — 取組不成立</span><span>返還 +${fmt(d.refund)}</span></div>`;
+        return;
+      }
       const w = rk(d.bout.result.winner);
       const pickName = rk(d.bet.side === "east" ? d.bout.east : d.bout.west).name;
       html += `<div class="result-line">
@@ -1687,7 +1850,7 @@ async function renderKometori() {
     <div class="card">
       <div class="form-row"><label>四股名</label><input id="pf-name" maxlength="10" value="${esc(G.profile.shikona)}"></div>
       <div class="form-row"><label>所属一門</label><select id="pf-ichimon">${ICHIMON.map(x => `<option ${x === G.profile.ichimon ? "selected" : ""}>${x}</option>`).join("")}</select></div>
-      <div class="form-row"><label>推し力士</label><select id="pf-oshi">${RIKISHI.map(r2 => `<option value="${r2.id}" ${r2.id === G.profile.oshiId ? "selected" : ""}>${esc(r2.name)}（${rankLabel(r2.rank)}）</option>`).join("")}</select></div>
+      <div class="form-row"><label>推し力士</label><select id="pf-oshi">${RIKISHI.map(r2 => `<option value="${esc(r2.name)}" ${r2.name === G.profile.oshiName ? "selected" : ""}>${esc(r2.name)}（${rankLabel(r2.rank)}）</option>`).join("")}</select></div>
       <button class="btn btn-primary" onclick="onSaveProfile()">変更を保存</button>
     </div>
     <button class="btn btn-ghost btn-wide" onclick="onReset()" style="margin-top:6px;color:var(--red);border-color:var(--red)">⚠ 全データをリセット（廃業）</button>`;
@@ -1745,7 +1908,9 @@ function onSaveProfile() {
   if (!name) { alert("四股名を入力してください"); return; }
   G.profile.shikona = name;
   G.profile.ichimon = $("#pf-ichimon").value;
-  G.profile.oshiId = parseInt($("#pf-oshi").value, 10);
+  G.profile.oshiName = $("#pf-oshi").value;
+  const oshi = RIKISHI.find(r => r.name === G.profile.oshiName);
+  G.profile.oshiId = oshi ? oshi.id : null;
   save(); renderHeader();
   showToast("⚙ プロフィール", "変更を保存しました");
 }
@@ -1847,7 +2012,7 @@ function closeModal() { $("#modal-area").innerHTML = ""; }
 
 // ---------------- オンボーディング（入門の儀） ----------------
 function renderOnboarding() {
-  const oshiOpts = RIKISHI.map(r => `<option value="${r.id}">${esc(r.name)}（${rankLabel(r.rank)}）</option>`).join("");
+  const oshiOpts = RIKISHI.map(r => `<option value="${esc(r.name)}">${esc(r.name)}（${rankLabel(r.rank)}）</option>`).join("");
   openModal(`
     <div class="onb-logo">トト相撲</div>
     <div class="onb-sub">— 大相撲 取組予想ゲーム ONLINE・入門の儀 —</div>
@@ -1870,7 +2035,7 @@ async function onbStart() {
   const name = $("#onb-name").value.trim().slice(0, 10);
   if (!name) { alert("四股名を入力してください"); return; }
   if (!UI.onb.ichimon) { alert("所属一門を選んでください"); return; }
-  newGame(name, UI.onb.ichimon, parseInt($("#onb-oshi").value, 10));
+  newGame(name, UI.onb.ichimon, $("#onb-oshi").value);
   closeModal();
   await sbInit();
   await ensureBashoState();
