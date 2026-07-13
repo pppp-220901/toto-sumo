@@ -196,6 +196,14 @@ table.banzuke tr.me td { background: #fdf3d8; font-weight: bold; }
 .quiz-choice.correct { border-color: var(--green); background: #e8f5e9; font-weight: bold; }
 .quiz-choice.wrong { border-color: var(--red); background: #fdecea; }
 .offseason-note { background: #fff; border: 2px dashed var(--gold); border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 14px; line-height: 1.9; }
+
+/* ---------- アコーディオン ---------- */
+details.acc { margin-bottom: 12px; }
+details.acc > summary { list-style: none; cursor: pointer; user-select: none; position: relative; }
+details.acc > summary::-webkit-details-marker { display: none; }
+details.acc > summary .acc-arrow { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); transition: transform .2s; font-size: 12px; }
+details.acc[open] > summary .acc-arrow { transform: translateY(-50%) rotate(180deg); }
+details.acc > .acc-body { padding-top: 10px; }
 .muted { color: #8a7a60; font-size: 12px; }
 .center { text-align: center; }
 hr.wave { border: none; border-top: 2px dashed #d8cdb4; margin: 14px 0; }
@@ -1587,24 +1595,43 @@ function renderTorikumi() {
       <button class="bonus-btn" onclick="openQuiz()"><span class="big">📖</span>相撲クイズ<br>500〜1,000合</button>
     </div>`;
 
-  // 本日の取組（各取組の直前まで受付・結果は随時反映）
+  // 本日の取組（各取組の直前まで受付・結果は随時反映）— アコーディオン
   const dd = SIM.days[day];
   if (dd) {
     const n = dd.torikumi.length;
     const done = dd.torikumi.filter(bt => bt.result).length;
     const openCount = dd.torikumi.filter((bt, i) => boutState(day, i) === "open").length;
-    html += `<div class="day-banner">⚔ ${day}日目 ${day === 8 ? "中日" : day === 15 ? "千秋楽" : ""}
-      <br><span style="font-size:11px">各取組の直前まで受付 ／ 確定 ${done}/${n}番 ${openCount ? `・受付中 ${openCount}番` : ""}</span></div>`;
-    boutOrder(day).slice().reverse().forEach(i => { html += boutCardHTML(dd.torikumi[i], i, day); }); // 結びの一番から表示
+    // デフォルト: 受付中の取組が残っていれば開、全取組終了なら閉
+    const openToday = UI.accToday !== undefined ? UI.accToday : openCount > 0;
+    let cards = "";
+    boutOrder(day).slice().reverse().forEach(i => { cards += boutCardHTML(dd.torikumi[i], i, day); }); // 結びの一番から表示
+    html += `
+    <details class="acc" ${openToday ? "open" : ""} ontoggle="UI.accToday=this.open">
+      <summary class="day-banner">⚔ ${day}日目 ${day === 8 ? "中日" : day === 15 ? "千秋楽" : ""} 取組・結果
+        <br><span style="font-size:11px">確定 ${done}/${n}番 ${openCount ? `・受付中 ${openCount}番` : "・全取組終了"}</span>
+        <span class="acc-arrow">▼</span>
+      </summary>
+      <div class="acc-body">${cards}</div>
+    </details>`;
   } else {
     html += `<div class="offseason-note">📋 ${day}日目の取組は発表待ちです。<br>データが更新されると予想できるようになります。</div>`;
   }
 
-  // 翌日の前売り（18:00以降）
+  // 翌日の前売り（18:00以降）— アコーディオン（デフォルト開）
   if (hm >= NEXT_OPEN_HM && day < 15 && !G.finishedProcessed) {
     if (SIM.days[day + 1]) {
-      html += `<div class="day-banner">🌅 ${day + 1}日目 前売り受付中<br><span style="font-size:11px">明日の各取組直前まで変更可能</span></div>`;
-      boutOrder(day + 1).slice().reverse().forEach(i => { html += boutCardHTML(SIM.days[day + 1].torikumi[i], i, day + 1); });
+      const openTmr = UI.accTomorrow !== undefined ? UI.accTomorrow : true;
+      let cards = "";
+      boutOrder(day + 1).slice().reverse().forEach(i => { cards += boutCardHTML(SIM.days[day + 1].torikumi[i], i, day + 1); });
+      const nTmr = G.bets.filter(x => x.day === day + 1 && !x.settled).length;
+      html += `
+      <details class="acc" ${openTmr ? "open" : ""} ontoggle="UI.accTomorrow=this.open">
+        <summary class="day-banner">🌅 ${day + 1}日目 前売り受付中
+          <br><span style="font-size:11px">明日の各取組直前まで変更可能 ${nTmr ? `・${nTmr}件ベット済` : ""}</span>
+          <span class="acc-arrow">▼</span>
+        </summary>
+        <div class="acc-body">${cards}</div>
+      </details>`;
     } else {
       html += `<div class="offseason-note">🌅 ${day + 1}日目の取組は発表待ちです。<br>発表され次第、前売り予想ができます。</div>`;
     }
