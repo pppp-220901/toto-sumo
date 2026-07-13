@@ -1340,6 +1340,9 @@ function takeChanko() {
   save();
   return true;
 }
+function canQuiz() {
+  return !(G.quizToday && G.quizToday.date === todayStr() && G.quizToday.count >= 1);
+}
 function getQuiz() {
   if (G.quizToday.date !== todayStr()) G.quizToday = { date: todayStr(), count: 0 };
   if (G.quizToday.count >= 1) return null; // 1日1問まで
@@ -1613,7 +1616,7 @@ function renderTorikumi() {
   let html = configWarning() + modeBanner + `
     <div class="bonus-row">
       <button class="bonus-btn" onclick="onChanko()" ${canChanko() ? "" : "disabled"}><span class="big">🍲</span>ちゃんこ${canChanko() ? "<br>+1,000合" : "<br>本日済み"}</button>
-      <button class="bonus-btn" onclick="openQuiz()"><span class="big">📖</span>相撲クイズ<br>1日1問 500〜1,000合</button>
+      <button class="bonus-btn" onclick="openQuiz()" ${canQuiz() ? "" : "disabled"}><span class="big">📖</span>相撲クイズ${canQuiz() ? "<br>1日1問 500〜1,000合" : "<br>本日済み"}</button>
     </div>`;
 
   // 本日の取組（各取組の直前まで受付・結果は随時反映）— アコーディオン
@@ -1856,7 +1859,7 @@ function offseasonHTML(info) {
     </div>
     <div class="bonus-row">
       <button class="bonus-btn" onclick="onChanko()" ${canChanko() ? "" : "disabled"}><span class="big">🍲</span>ちゃんこ${canChanko() ? "<br>+1,000合" : "<br>本日済み"}</button>
-      <button class="bonus-btn" onclick="openQuiz()"><span class="big">📖</span>相撲クイズ<br>1日1問 500〜1,000合</button>
+      <button class="bonus-btn" onclick="openQuiz()" ${canQuiz() ? "" : "disabled"}><span class="big">📖</span>相撲クイズ${canQuiz() ? "<br>1日1問 500〜1,000合" : "<br>本日済み"}</button>
     </div>
     <p class="muted center">オフシーズン中もちゃんことクイズで米を蓄えられます</p>`;
 }
