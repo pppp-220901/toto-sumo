@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-12T13:22:43.413Z",
+ "updatedAt": "2026-07-13T00:08:00.361Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -178,6 +178,10 @@
  ],
  "kyujoLog": {
   "1": [
+   "若隆景",
+   "白鷹山"
+  ],
+  "2": [
    "若隆景",
    "白鷹山"
   ]
