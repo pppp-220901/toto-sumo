@@ -499,7 +499,7 @@ const TITLES = [
   // --- 8. 最高位・伝説編 (10) ---
   { id: "t8_01", cat: 8, name: "関取の",         desc: "番付「関取」に到達", cond: s => s.bestBanzuke >= 5 },
   { id: "t8_02", cat: 8, name: "ト結の",         desc: "番付「ト結」に到達", cond: s => s.bestBanzuke >= 6 },
-  { id: "t8_03", cat: 8, name: "関トトの",       desc: "番付「関トト」に到達", cond: s => s.bestBanzuke >= 7 },
+  { id: "t8_03", cat: 8, name: "トト脇の",       desc: "番付「トト脇」に到達", cond: s => s.bestBanzuke >= 7 },
   { id: "t8_04", cat: 8, name: "トー関の",       desc: "番付「トー関」に到達", cond: s => s.bestBanzuke >= 8 },
   { id: "t8_05", cat: 8, name: "トト綱の",       desc: "番付「トト綱」に到達", cond: s => s.bestBanzuke >= 9 },
   { id: "t8_06", cat: 8, name: "連覇の",         desc: "トト綱に2回到達", cond: s => s.totoTsunaCount >= 2 },
@@ -586,8 +586,8 @@ const QUIZ = [
 
 const QUIZ_CATS = ["歴史", "決まり手", "番付・制度", "ルール・作法", "記録", "行司・呼出", "部屋・一門", "儀式・文化", "雑学"];
 
-// 番付システム レベル: 9=トト綱 8=トー関 7=関トト 6=ト結（各2名まで） 5=関取 4=幕下 3=新弟子
-const BANZUKE_NAMES = { 9: "トト綱", 8: "トー関", 7: "関トト", 6: "ト結", 5: "関取", 4: "幕下", 3: "新弟子" };
+// 番付システム レベル: 9=トト綱 8=トー関 7=トト脇 6=ト結（各2名まで） 5=関取 4=幕下 3=新弟子
+const BANZUKE_NAMES = { 9: "トト綱", 8: "トー関", 7: "トト脇", 6: "ト結", 5: "関取", 4: "幕下", 3: "新弟子" };
 // ============================================================
 // トト相撲 ONLINE — コアロジック
 // 全プレイヤー共通の取組・結果（シード乱数）+ Supabase共有ランキング
@@ -600,7 +600,7 @@ const CONFIG = {
 };
 // ★★★ 未設定でもローカル1人プレイとして動作します ★★★
 
-const BUILD_VERSION = "2026-07-14f"; // 更新確認用（配布のたびに更新）
+const BUILD_VERSION = "2026-07-14g"; // 更新確認用（配布のたびに更新）
 const START_POINTS = 15000;
 const SIM_SALT = "toto-sumo-r8"; // 全員共通のシード塩
 
@@ -1321,11 +1321,72 @@ async function announceBanzuke() {
   G.banzukeLevel = bz.level;
   s.bestBanzuke = Math.max(s.bestBanzuke, bz.level);
   if (bz.level === 9) s.totoTsunaCount++;
-  if (G.lastResult) G.lastResult.banzuke = { level: bz.level, levelName: bz.levelName, pos: bz.pos, total: bz.total };
+  if (G.lastResult) {
+    G.lastResult.banzuke = { level: bz.level, levelName: bz.levelName, pos: bz.pos, total: bz.total };
+    G.lastResult.article = buildBashoArticle(bz, leaders);
+  }
   G.banzukeAnnounced = true;
   pendingModals.push({ type: "banzuke", data: bz });
   checkAchievements();
   save();
+}
+
+// 場所の振り返り記事（テンプレート生成・約300字）
+// 各プレイヤーの日次スコア履歴(history列)から見どころを抽出する
+function buildBashoArticle(bz, leaders) {
+  const table = bz.table;
+  if (!table.length) return null;
+  const champ = table[0];
+  const bashoName = G.lastResult ? G.lastResult.bashoName : "";
+  const players = (leaders || [])
+    .filter(p => p.history && typeof p.history === "object")
+    .map(p => ({ name: p.shikona, h: p.history }));
+  const days = [...new Set(players.flatMap(p => Object.keys(p.h).map(Number)))]
+    .filter(d => d >= 1).sort((a, b) => a - b);
+  const at = (p, d) => { const v = p.h[String(d)]; return typeof v === "number" ? v : undefined; };
+  const leaderAt = d => {
+    let best = null;
+    players.forEach(p => {
+      const v = at(p, d);
+      if (v !== undefined && (!best || v > best.v)) best = { name: p.name, v };
+    });
+    return best;
+  };
+  const sent = [];
+  // 序盤・中盤のリーダーと逆転劇
+  const earlyDay = days.find(d => d <= 5);
+  const eLead = earlyDay !== undefined ? leaderAt(earlyDay) : null;
+  if (eLead) {
+    sent.push(`序盤は${eLead.name}が${fmt(eLead.v)}合で首位に立ち場所を引っ張った`);
+    let lastNonChamp = null;
+    days.forEach(d => { const l = leaderAt(d); if (l && l.name !== champ.name) lastNonChamp = d; });
+    if (lastNonChamp !== null && eLead.name !== champ.name) {
+      sent.push(`${champ.name}が首位を奪ったのは${Math.min(15, lastNonChamp + 1)}日目。そのまま最後まで譲らなかった`);
+    } else if (eLead.name === champ.name) {
+      sent.push(`${champ.name}はその後も一度も首位を明け渡さない完勝劇だった`);
+    }
+  }
+  // 1日で最も米を動かした勝負
+  let big = null;
+  players.forEach(p => {
+    days.forEach(d => {
+      const a = at(p, d - 1), b = at(p, d);
+      if (a !== undefined && b !== undefined && b - a > 0 && (!big || b - a > big.delta)) big = { name: p.name, day: d, delta: b - a };
+    });
+  });
+  if (big && big.delta >= 1000) sent.push(`圧巻は${big.day}日目の${big.name}。一日で${fmt(big.delta)}合を積み上げる大勝負が番付を大きく動かした`);
+  // 新弟子の健闘
+  const rookie = table.find(u => u.isNew && u.pos <= Math.max(3, Math.ceil(table.length / 3)));
+  if (rookie && rookie.name !== champ.name) sent.push(`初土俵の${rookie.name}は${rookie.pos}位と大健闘`);
+  // 締め
+  const runner = table[1];
+  return {
+    headline: `${champ.name}、${champ.levelName}へ — ${bashoName} トト番付`,
+    body: `${bashoName}のトト番付は${champ.name}が最終${fmt(champ.points)}合で制し、${champ.levelName}に就いた。` +
+      (sent.length ? sent.join("。") + "。" : "") +
+      (runner ? `${runner.name}が${fmt(runner.points)}合で続き${runner.levelName}。` : "") +
+      `参加${bz.total}名の新番付は、番付編成会議を経て水曜に発表された。`
+  };
 }
 
 // ============================================================
@@ -1393,12 +1454,14 @@ async function pushProfile() {
     banzuke_level: G.banzukeLevel,
     basho_count: G.bashoCount,
     final_points: (typeof G.finalPoints === "number") ? G.finalPoints : null,
+    history: Object.fromEntries((G.pointsHistory || []).map(h => [String(h.day), h.points])),
     updated_at: new Date().toISOString()
   };
   let { error } = await SB.from("players").upsert(row);
-  if (error && /final_points/.test(error.message)) {
-    // final_points列が未作成の環境向けフォールバック
+  if (error && /final_points|history/.test(error.message)) {
+    // 列が未作成の環境向けフォールバック
     delete row.final_points;
+    delete row.history;
     ({ error } = await SB.from("players").upsert(row));
   }
   if (error) console.warn("同期失敗:", error.message);
@@ -1412,11 +1475,11 @@ function syncCloud() {
 async function fetchLeaderboard(bashoKey) {
   if (!SB) return null;
   let { data, error } = await SB.from("players")
-    .select("id, shikona, ichimon, title, points, hits, bets, basho_count, final_points")
+    .select("id, shikona, ichimon, title, points, hits, bets, basho_count, final_points, history")
     .eq("basho_key", bashoKey)
     .order("points", { ascending: false })
     .limit(200);
-  if (error && /final_points/.test(error.message)) {
+  if (error && /final_points|history/.test(error.message)) {
     ({ data, error } = await SB.from("players")
       .select("id, shikona, ichimon, title, points, hits, bets, basho_count")
       .eq("basho_key", bashoKey)
@@ -2158,6 +2221,11 @@ function showBanzukeModal(bz) {
     </div>
     <p style="font-size:12px;font-weight:bold;color:var(--maroon)">上位番付</p>
     ${top}
+    ${r && r.article ? `
+    <div style="background:#fff;border:1px solid #d8cdb4;border-radius:10px;padding:14px;margin-top:12px;text-align:left">
+      <b style="color:var(--maroon);font-size:14px">📰 ${esc(r.article.headline)}</b>
+      <p style="font-size:13px;line-height:2;margin-top:6px">${esc(r.article.body)}</p>
+    </div>` : ""}
     ${conv}
     <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll()">謹んでお受けします</button>
   `);
