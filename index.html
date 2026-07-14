@@ -182,6 +182,21 @@ table.banzuke tr.me td { background: #fdf3d8; font-weight: bold; }
 }
 .ichimon-card.sel { border-color: var(--maroon); background: var(--maroon); color: var(--gold-l); }
 
+/* ---------- 電撃演出（優勝予想・全賭け） ---------- */
+#thunder-overlay { position: fixed; inset: 0; z-index: 300; pointer-events: none; }
+#thunder-overlay .t-flash { position: absolute; inset: 0; background: #fffbe0; animation: tFlash .95s ease-out forwards; }
+#thunder-overlay svg { position: absolute; inset: 0; width: 100%; height: 100%; animation: tBolt .95s ease-out forwards; }
+#thunder-overlay .t-word {
+  position: absolute; top: 42%; left: 0; right: 0; text-align: center;
+  font-size: 30px; font-weight: bold; color: var(--maroon); text-shadow: 0 0 12px #ffd94d, 0 0 4px #fff;
+  letter-spacing: 4px; animation: tWord .95s ease-out forwards; opacity: 0;
+}
+@keyframes tFlash { 0% { opacity: 0; } 8% { opacity: 1; } 20% { opacity: .15; } 30% { opacity: .85; } 45% { opacity: .1; } 100% { opacity: 0; } }
+@keyframes tBolt { 0% { opacity: 0; } 8%, 28% { opacity: 1; } 18% { opacity: .25; } 38% { opacity: .8; } 60%, 100% { opacity: 0; } }
+@keyframes tWord { 0% { opacity: 0; transform: scale(.6); } 25% { opacity: 1; transform: scale(1.15); } 45% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+body.shake { animation: tShake .55s; }
+@keyframes tShake { 0%, 100% { transform: none; } 15% { transform: translate(-7px, 4px); } 30% { transform: translate(6px, -5px); } 45% { transform: translate(-5px, 3px); } 60% { transform: translate(4px, -2px); } 80% { transform: translate(-2px, 1px); } }
+
 /* ---------- トースト ---------- */
 #toast-area { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); z-index: 200; width: 90%; max-width: 420px; }
 .toast {
@@ -600,7 +615,7 @@ const CONFIG = {
 };
 // ★★★ 未設定でもローカル1人プレイとして動作します ★★★
 
-const BUILD_VERSION = "2026-07-14g"; // 更新確認用（配布のたびに更新）
+const BUILD_VERSION = "2026-07-14h"; // 更新確認用（配布のたびに更新）
 const START_POINTS = 15000;
 const SIM_SALT = "toto-sumo-r8"; // 全員共通のシード塩
 
@@ -2291,11 +2306,35 @@ function renderBashoTab() {
       <table class="banzuke"><tr><th>順</th><th>力士</th><th>成績</th></tr>${starRows}</table>
     </div>`;
 }
+// ⚡ 電撃演出（全てを懸けた瞬間）
+function playThunder(done) {
+  const el = document.createElement("div");
+  el.id = "thunder-overlay";
+  el.innerHTML = `
+    <div class="t-flash"></div>
+    <svg viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <polyline points="140,0 185,170 135,195 235,430 185,455 265,720" fill="none" stroke="#ffd94d" stroke-width="11"/>
+      <polyline points="140,0 185,170 135,195 235,430 185,455 265,720" fill="none" stroke="#fff" stroke-width="4"/>
+      <polyline points="235,430 160,520 205,540 150,660" fill="none" stroke="#ffd94d" stroke-width="6"/>
+      <polyline points="310,0 275,140 325,165 245,390" fill="none" stroke="#ffd94d" stroke-width="7"/>
+      <polyline points="310,0 275,140 325,165 245,390" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <polyline points="60,0 95,120 55,140 110,300" fill="none" stroke="#ffd94d" stroke-width="5"/>
+    </svg>
+    <div class="t-word">全てを懸けた——！</div>`;
+  document.body.appendChild(el);
+  document.body.classList.add("shake");
+  if (navigator.vibrate) navigator.vibrate([90, 40, 140]);
+  setTimeout(() => document.body.classList.remove("shake"), 600);
+  setTimeout(() => { el.remove(); if (done) done(); }, 1000);
+}
+
 function onYusho() {
   const res = placeYushoBet(parseInt($("#yusho-pick").value, 10));
   if (!res.ok) { alert(res.msg); return; }
-  oyakataSay("yusho");
-  renderHeader(); renderBashoTab();
+  playThunder(() => {
+    oyakataSay("yusho");
+    renderHeader(); renderBashoTab();
+  });
 }
 function onSansho() {
   const res = placeSanshoBet($("#sansho-shukun").value, $("#sansho-kanto").value, $("#sansho-gino").value);
