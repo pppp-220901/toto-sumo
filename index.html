@@ -1012,6 +1012,7 @@ function settlePending() {
       if (dayLongPast(bet.day)) {
         bet.settled = true;
         const refund = bet.amount + (bet.kAmount || 0);
+        bet.refundAmount = refund; bet.net = 0;
         G.points += refund;
         s.totalBets = Math.max(0, s.totalBets - 1);
         G.betsThisBasho = Math.max(0, G.betsThisBasho - 1);
@@ -1061,6 +1062,7 @@ function settlePending() {
     if (totalGain > 0) { G.points += totalGain; s.totalEarned += totalGain; }
     s.maxSingleWin = Math.max(s.maxSingleWin, gain + oshiBonus);
     const net = totalGain - (hit ? 0 : bet.amount) - (kHit ? 0 : (bet.kAmount || 0));
+    bet.payout = totalGain; bet.net = net; bet.kHit = kHit; // カード表示用に記録
     // 日次集計（日の締めまで蓄積）
     const agg = G.dayAgg[bet.day] = G.dayAgg[bet.day] || { bets: 0, hits: 0, net: 0, fav: 0, dog: 0 };
     agg.bets++; if (hit) agg.hits++; agg.net += net;
@@ -1114,7 +1116,7 @@ function settlePending() {
     summaries.push({ day, details, dayHits, dayMiss, net, betCount: details.filter(d => d.refund === undefined).length });
   });
   if (summaries.length) pendingModals.unshift({ type: "settle", data: summaries });
-  G.bets = G.bets.filter(x => !x.settled);
+  // 精算済みベットも場所中は保持（取組カードに収支を表示するため。場所替わりでリセット）
   checkAchievements();
   save();
   return summaries;
@@ -1793,6 +1795,21 @@ function boutCardHTML(bout, i, day) {
   if (state === "done") {
     const w = rk(bout.result.winner);
     html += `<div class="bet-status" style="justify-content:center;text-align:center"><span>🥁 <b>${esc(w.name)}</b> の勝ち（${esc(bout.result.kimarite)}）</span></div>`;
+    // 自分の賭けの収支
+    const sb = G.bets.find(x => x.day === day && x.bout === i && x.settled);
+    if (sb) {
+      const pickName = rk(sb.side === "east" ? bout.east : bout.west).name;
+      let line;
+      if (sb.refundAmount !== undefined) {
+        line = `<span>△ ${esc(pickName)}に${fmt(sb.amount)}合 → 不成立・返還</span><span>±0</span>`;
+      } else {
+        const cls = sb.net >= 0 ? "hit" : "miss";
+        const kNote = sb.kimarite ? `／決まり手「${esc(sb.kimarite)}」${sb.kHit ? "◎" : "✕"}` : "";
+        line = `<span>${sb.hit ? "○" : "●"} ${esc(pickName)}に${fmt(sb.amount)}合（${sb.odds.toFixed(2)}倍）${kNote}</span>
+          <span class="${cls}">${sb.net >= 0 ? "+" : ""}${fmt(sb.net)}合</span>`;
+      }
+      html += `<div class="bet-status" style="background:${sb.hit ? "#eef7ec" : "#fbeeec"}">${line}</div>`;
+    }
   } else if (state === "locked") {
     html += `<div class="bet-status" style="justify-content:center;text-align:center"><span class="muted">🔒 締切（取組中・結果待ち）</span></div>`;
   } else {
