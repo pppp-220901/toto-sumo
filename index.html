@@ -622,7 +622,7 @@ const CONFIG = {
 };
 // ★★★ 未設定でもローカル1人プレイとして動作します ★★★
 
-const BUILD_VERSION = "2026-07-14l"; // 更新確認用（配布のたびに更新）
+const BUILD_VERSION = "2026-07-14m"; // 更新確認用（配布のたびに更新）
 const START_POINTS = 15000;
 const SIM_SALT = "toto-sumo-r8"; // 全員共通のシード塩
 
@@ -1836,6 +1836,16 @@ function renderTab() {
   if (UI.tab === "kometori") renderKometori();
 }
 
+// ちゃんこ・クイズのボーナス行（両方消化済みの日は非表示）
+function bonusRowHTML() {
+  if (!canChanko() && !canQuiz()) return "";
+  return `
+    <div class="bonus-row">
+      <button class="bonus-btn" onclick="onChanko()" ${canChanko() ? "" : "disabled"}><span class="big">🍲</span>ちゃんこ${canChanko() ? "<br>+1,000合" : "<br>本日済み"}</button>
+      <button class="bonus-btn" onclick="openQuiz()" ${canQuiz() ? "" : "disabled"}><span class="big">📖</span>相撲クイズ${canQuiz() ? "<br>1日1問 500〜1,000合" : "<br>本日済み"}</button>
+    </div>`;
+}
+
 function configWarning() {
   if (sbConfigured()) return "";
   return `<div class="card" style="border-color:var(--red)"><b style="color:var(--red)">⚠ オンライン未設定</b><div class="note">Supabaseの設定が未入力のためローカル1人プレイで動作中。「セットアップ手順.md」に従って CONFIG に URL と anon key を設定すると共有ランキングが有効になります。</div></div>`;
@@ -1853,11 +1863,7 @@ function renderTorikumi() {
   const modeBanner = DATA_MODE === "real"
     ? `<p class="muted center" style="margin-bottom:8px">🛰 実データ連動中（場所中は約10分間隔で自動更新）</p>`
     : `<p class="muted center" style="margin-bottom:8px">🎲 シミュレーションモード（実データ未取得）</p>`;
-  let html = configWarning() + modeBanner + `
-    <div class="bonus-row">
-      <button class="bonus-btn" onclick="onChanko()" ${canChanko() ? "" : "disabled"}><span class="big">🍲</span>ちゃんこ${canChanko() ? "<br>+1,000合" : "<br>本日済み"}</button>
-      <button class="bonus-btn" onclick="openQuiz()" ${canQuiz() ? "" : "disabled"}><span class="big">📖</span>相撲クイズ${canQuiz() ? "<br>1日1問 500〜1,000合" : "<br>本日済み"}</button>
-    </div>`;
+  let html = configWarning() + modeBanner + bonusRowHTML();
 
   // 並び順切替（番付順=結びから / 時系列順=序盤から）
   const sm = UI.sortMode || localStorage.getItem("sortMode") || "banzuke";
@@ -2204,11 +2210,7 @@ function offseasonHTML(info) {
     : "";
   const bonusArea = frozen
     ? `<div class="offseason-note" style="padding:10px">🧘 力士は番付発表まで謹慎中。ちゃんこ・クイズはお休みです。</div>`
-    : `<div class="bonus-row">
-      <button class="bonus-btn" onclick="onChanko()" ${canChanko() ? "" : "disabled"}><span class="big">🍲</span>ちゃんこ${canChanko() ? "<br>+1,000合" : "<br>本日済み"}</button>
-      <button class="bonus-btn" onclick="openQuiz()" ${canQuiz() ? "" : "disabled"}><span class="big">📖</span>相撲クイズ${canQuiz() ? "<br>1日1問 500〜1,000合" : "<br>本日済み"}</button>
-    </div>
-    <p class="muted center">オフシーズン中もちゃんことクイズで米を蓄えられます</p>`;
+    : (bonusRowHTML() ? bonusRowHTML() + `<p class="muted center">オフシーズン中もちゃんことクイズで米を蓄えられます</p>` : "");
   return `
     <div class="offseason-note">
       <b style="font-size:17px">🌙 ${G.finishedProcessed && info.current ? "千秋楽 打ち止め" : "オフシーズン"}</b><br>
@@ -2647,10 +2649,10 @@ function showBeginnerGuide() {
     <h2 style="color:var(--maroon)">👹 親方の心得</h2>
     <div style="background:#fff;border:2px solid var(--maroon);border-radius:12px;padding:14px;font-size:14px;line-height:2">
       「よう来たな、新弟子。トト相撲の稽古をつけてやろう。<br><br>
-      一、はじめは<b>🚩懸賞のかかった一番</b>と、<b>⚖東西対抗戦</b>に賭けるのがオススメじゃ。どちらも<b>オッズ3倍</b>、覚えやすくて実入りも良い。<br><br>
-      一、取組は<b>各取組の直前まで</b>受付。オッズは力士の調子で毎日動く生き物じゃ。<br><br>
+      一、初日は<b>🚩懸賞のかかった一番</b>と、<b>⚖東西対抗戦</b>に賭けるのがオススメじゃ。どちらも<b>オッズ3倍</b>、覚えやすくて実入りも良い。<br><br>
+      一、取組は<b>各組の直前まで</b>受付。オッズは力士の調子で毎日動く生き物じゃ。<br><br>
       一、<b>🍲ちゃんこ</b>と<b>📖相撲クイズ</b>は毎日タダで米が増える。忘れるでない。<br><br>
-      一、腕に覚えが出てきたら「場所予想」の<b>優勝予想</b>じゃ。早く当てるほど、千秋楽の持ち米が<b>丸ごと倍々</b>になる大勝負よ。<br><br>
+      一、腕に覚えが出てきたら「場所予想」の<b>優勝予想</b>じゃ。早く当てるほど、千秋楽の持ち米が<b>丸ごと倍</b>になる大勝負よ。<br><br>
       米が尽きたら……まあ、その時はわしに任せい。」
     </div>
     <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll();setTimeout(()=>oyakataSay('beginner'),800)">🥁 稽古開始！</button>
