@@ -1,183 +1,227 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-14T08:05:08.510Z",
+ "updatedAt": "2026-07-14T08:45:38.872Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
    "name": "豊昇龍",
-   "rank": "Y"
+   "rank": "Y",
+   "side": "E"
   },
   {
    "name": "王鵬",
-   "rank": "K"
+   "rank": "K",
+   "side": "W"
   },
   {
    "name": "義ノ富士",
-   "rank": "K"
+   "rank": "K",
+   "side": "E"
   },
   {
    "name": "大の里",
-   "rank": "Y"
+   "rank": "Y",
+   "side": "W"
   },
   {
    "name": "霧島",
-   "rank": "O"
+   "rank": "O",
+   "side": "E"
   },
   {
    "name": "藤ノ川",
-   "rank": "M1"
+   "rank": "M1",
+   "side": "E"
   },
   {
    "name": "隆の勝",
-   "rank": "M1"
+   "rank": "M1",
+   "side": "W"
   },
   {
    "name": "琴櫻",
-   "rank": "O"
+   "rank": "O",
+   "side": "W"
   },
   {
    "name": "熱海富士",
-   "rank": "S"
+   "rank": "S",
+   "side": "E"
   },
   {
    "name": "豪ノ山",
-   "rank": "M2"
+   "rank": "M2",
+   "side": "E"
   },
   {
    "name": "美ノ海",
-   "rank": "M2"
+   "rank": "M2",
+   "side": "W"
   },
   {
    "name": "琴勝峰",
-   "rank": "S"
+   "rank": "S",
+   "side": "W"
   },
   {
    "name": "平戸海",
-   "rank": "M3"
+   "rank": "M3",
+   "side": "E"
   },
   {
    "name": "安青錦",
-   "rank": "S"
+   "rank": "S",
+   "side": "W"
   },
   {
    "name": "大栄翔",
-   "rank": "M4"
+   "rank": "M4",
+   "side": "E"
   },
   {
    "name": "伯乃富士",
-   "rank": "M3"
+   "rank": "M3",
+   "side": "W"
   },
   {
    "name": "宇良",
-   "rank": "M5"
+   "rank": "M5",
+   "side": "E"
   },
   {
    "name": "一山本",
-   "rank": "M4"
+   "rank": "M4",
+   "side": "W"
   },
   {
    "name": "正代",
-   "rank": "M6"
+   "rank": "M6",
+   "side": "E"
   },
   {
    "name": "欧勝馬",
-   "rank": "M5"
+   "rank": "M5",
+   "side": "W"
   },
   {
    "name": "琴栄峰",
-   "rank": "M7"
+   "rank": "M7",
+   "side": "E"
   },
   {
    "name": "藤青雲",
-   "rank": "M6"
+   "rank": "M6",
+   "side": "W"
   },
   {
    "name": "若元春",
-   "rank": "M8"
+   "rank": "M8",
+   "side": "E"
   },
   {
    "name": "高安",
-   "rank": "M7"
+   "rank": "M7",
+   "side": "W"
   },
   {
    "name": "藤凌駕",
-   "rank": "M9"
+   "rank": "M9",
+   "side": "E"
   },
   {
    "name": "狼雅",
-   "rank": "M8"
+   "rank": "M8",
+   "side": "W"
   },
   {
    "name": "朝乃山",
-   "rank": "M10"
+   "rank": "M10",
+   "side": "E"
   },
   {
    "name": "翔猿",
-   "rank": "M9"
+   "rank": "M9",
+   "side": "W"
   },
   {
    "name": "若ノ勝",
-   "rank": "M11"
+   "rank": "M11",
+   "side": "E"
   },
   {
    "name": "千代翔馬",
-   "rank": "M10"
+   "rank": "M10",
+   "side": "W"
   },
   {
    "name": "朝白龍",
-   "rank": "M12"
+   "rank": "M12",
+   "side": "E"
   },
   {
    "name": "御嶽海",
-   "rank": "M11"
+   "rank": "M11",
+   "side": "W"
   },
   {
    "name": "錦富士",
-   "rank": "M13"
+   "rank": "M13",
+   "side": "E"
   },
   {
    "name": "阿炎",
-   "rank": "M12"
+   "rank": "M12",
+   "side": "W"
   },
   {
    "name": "金峰山",
-   "rank": "M14"
+   "rank": "M14",
+   "side": "E"
   },
   {
    "name": "尊富士",
-   "rank": "M13"
+   "rank": "M13",
+   "side": "W"
   },
   {
    "name": "阿武剋",
-   "rank": "M15"
+   "rank": "M15",
+   "side": "E"
   },
   {
    "name": "獅司",
-   "rank": "M14"
+   "rank": "M14",
+   "side": "W"
   },
   {
    "name": "大青山",
-   "rank": "M16"
+   "rank": "M16",
+   "side": "E"
   },
   {
    "name": "一意",
-   "rank": "M15"
+   "rank": "M15",
+   "side": "W"
   },
   {
    "name": "旭海雄",
-   "rank": "J1"
+   "rank": "J1",
+   "side": "W"
   },
   {
    "name": "朝紅龍",
-   "rank": "M16"
+   "rank": "M16",
+   "side": "W"
   },
   {
    "name": "朝翠龍",
-   "rank": "J1"
+   "rank": "J1",
+   "side": "E"
   },
   {
    "name": "時疾風",
-   "rank": "J2"
+   "rank": "J2",
+   "side": "E"
   }
  ],
  "kyujoLog": {
@@ -468,44 +512,44 @@
    {
     "e": "霧島",
     "w": "豪ノ山",
-    "k": null,
-    "win": null
+    "k": "押し出し",
+    "win": "e"
    },
    {
     "e": "美ノ海",
     "w": "琴櫻",
-    "k": null,
-    "win": null
+    "k": "押し出し",
+    "win": "e"
    },
    {
     "e": "伯乃富士",
     "w": "安青錦",
-    "k": null,
-    "win": null
+    "k": "寄り切り",
+    "win": "w"
    },
    {
     "e": "熱海富士",
     "w": "王鵬",
-    "k": null,
-    "win": null
+    "k": "上手出し投げ",
+    "win": "e"
    },
    {
     "e": "義ノ富士",
     "w": "琴勝峰",
-    "k": null,
-    "win": null
+    "k": "押し出し",
+    "win": "w"
    },
    {
     "e": "平戸海",
     "w": "大栄翔",
-    "k": null,
-    "win": null
+    "k": "引き落とし",
+    "win": "w"
    },
    {
     "e": "欧勝馬",
     "w": "一山本",
-    "k": null,
-    "win": null
+    "k": "押し出し",
+    "win": "w"
    },
    {
     "e": "宇良",
@@ -577,7 +621,7 @@
     "e": "時疾風",
     "w": "一意",
     "k": "寄り切り",
-    "win": null
+    "win": "w"
    }
   ]
  }
