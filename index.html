@@ -622,7 +622,7 @@ const CONFIG = {
 };
 // ★★★ 未設定でもローカル1人プレイとして動作します ★★★
 
-const BUILD_VERSION = "2026-07-14m"; // 更新確認用（配布のたびに更新）
+const BUILD_VERSION = "2026-07-14n"; // 更新確認用（配布のたびに更新）
 const START_POINTS = 15000;
 const SIM_SALT = "toto-sumo-r8"; // 全員共通のシード塩
 
@@ -1127,7 +1127,8 @@ function settlePending() {
       const isOther = !["押し出し", "寄り切り", "はたき込み"].includes(actual);
       kHit = (bet.kimarite === actual) || (bet.kimarite === "それ以外" && isOther);
       if (kHit) {
-        kGain = Math.round(bet.kAmount * KIMARITE_BET.find(k => k.key === bet.kimarite).odds);
+        // 懸賞一番は決まり手予想もオッズ×3
+        kGain = Math.round(bet.kAmount * KIMARITE_BET.find(k => k.key === bet.kimarite).odds * (bout.kensho ? 3 : 1));
         s.kimariteHits++; s.kimariteStreak++;
         s.kimariteStreakBest = Math.max(s.kimariteStreakBest, s.kimariteStreak);
         if (bet.kimarite === "それ以外") s.rareKimariteHits++;
@@ -2067,7 +2068,7 @@ function boutCardHTML(bout, i, day) {
       <div class="bet-row"><label>賭け米</label><input type="number" id="bet-amount" value="500" step="100" min="100" max="${G.points}"> 合</div>
       <div class="bet-row"><label>決まり手</label>
         <select id="bet-kimarite"><option value="">予想しない</option>
-          ${KIMARITE_BET.map(k => `<option value="${k.key}">${k.key}（${k.odds}倍）</option>`).join("")}
+          ${KIMARITE_BET.map(k => `<option value="${k.key}">${k.key}（${round2(k.odds * (bout.kensho ? 3 : 1))}倍）</option>`).join("")}
         </select>
         <input type="number" id="bet-kamount" value="0" step="100" min="0" placeholder="決まり手賭け米"> 合
       </div>
