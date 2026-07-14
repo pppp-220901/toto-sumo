@@ -370,6 +370,13 @@ const SANSHO_ODDS = { 8: 2.5, 9: 2.3, 10: 2.1, 11: 1.9, 12: 1.7, 13: 1.5, 14: 1.
 // 親方コメント集（仕様 10）
 // ============================================================
 const OYAKATA = {
+  beginner: [
+    "初日は🚩懸賞のかかった一番と、⚖東西対抗戦に賭けるのがオススメじゃ。どちらもオッズ3倍、実入りが良いぞ。",
+    "取組は各組の直前まで賭けられる。オッズは力士の調子で毎日動く生き物じゃ、よく見て張れ。",
+    "🍲ちゃんこと📖相撲クイズは毎日タダで米が増える。稽古の基本じゃ、忘れるでない。",
+    "腕に覚えが出てきたら「場所予想」タブの優勝予想じゃ。早く当てるほど持ち米が丸ごと倍になる大勝負よ。",
+    "まずは100合から張ってみい。米が尽きたら……まあ、その時はわしとおかみさんに任せい。"
+  ],
   greet: [
     "おう、来たか。今日も気合い入れて予想せい！",
     "土俵の上にゃ銭が埋まっとる。掘り起こすのはお前さんの眼力よ。",
@@ -615,7 +622,7 @@ const CONFIG = {
 };
 // ★★★ 未設定でもローカル1人プレイとして動作します ★★★
 
-const BUILD_VERSION = "2026-07-14i"; // 更新確認用（配布のたびに更新）
+const BUILD_VERSION = "2026-07-14j"; // 更新確認用（配布のたびに更新）
 const START_POINTS = 15000;
 const SIM_SALT = "toto-sumo-r8"; // 全員共通のシード塩
 
@@ -2563,6 +2570,8 @@ function onQuizAnswer(idx, choice) {
 // ---------------- 親方・トースト・モーダル ----------------
 let oyakataTimer = null;
 function oyakataSay(type) {
+  // 駆け出しのうちは挨拶の代わりに手ほどきをする
+  if (type === "greet" && G && G.stats.totalBets < 5) type = "beginner";
   const msg = pickRand(OYAKATA[type] || OYAKATA.greet);
   const bub = $("#oyakata-bubble");
   bub.textContent = msg;
@@ -2619,8 +2628,23 @@ async function onbStart() {
   await ensureBashoState();
   renderAll();
   showToast("🥁 入門の儀 完了", `${UI.onb.ichimon}一門・${name} 関の誕生だ！`);
-  playPendingModals();
-  setTimeout(() => oyakataSay("greet"), 600);
+  showBeginnerGuide();
+}
+
+// 親方の心得（入門直後のチュートリアル）
+function showBeginnerGuide() {
+  openModal(`
+    <h2 style="color:var(--maroon)">👹 親方の心得</h2>
+    <div style="background:#fff;border:2px solid var(--maroon);border-radius:12px;padding:14px;font-size:14px;line-height:2">
+      「よう来たな、新弟子。トト相撲の稽古をつけてやろう。<br><br>
+      一、初日は<b>🚩懸賞のかかった一番</b>と、<b>⚖東西対抗戦</b>に賭けるのがオススメじゃ。どちらも<b>オッズ3倍</b>、覚えやすくて実入りも良い。<br><br>
+      一、取組は<b>各組の直前まで</b>受付。オッズは力士の調子で毎日動く生き物じゃ。<br><br>
+      一、<b>🍲ちゃんこ</b>と<b>📖相撲クイズ</b>は毎日タダで米が増える。忘れるでない。<br><br>
+      一、腕に覚えが出てきたら「場所予想」の<b>優勝予想</b>じゃ。早く当てるほど、千秋楽の持ち米が<b>丸ごと倍</b>になる大勝負よ。<br><br>
+      米が尽きたら……まあ、その時はわしに任せい。」
+    </div>
+    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll();setTimeout(()=>oyakataSay('beginner'),800)">🥁 稽古開始！</button>
+  `);
 }
 
 init();
