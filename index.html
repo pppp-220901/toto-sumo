@@ -753,11 +753,15 @@ function estStartHM(slot, n, day) {
 function boutLockHM(slot, n, day) { return estStartHM(slot, n, day) - LOCK_MARGIN; }
 function fmtHM(hm) { return Math.floor(hm / 60) + ":" + String(hm % 60).padStart(2, "0"); }
 
-// 進行順: 番付合計が低い取組ほど早く、結び（横綱戦）が最後
-// 戻り値は「進行順に並んだ取組index」の配列
+// 進行順（戻り値は「進行順に並んだ取組index」の配列）
+// 実データ: スポナビの掲載順=進行の逆順（先頭が結びの一番）なので、配列を逆から読む
+// シミュレーション: 番付合計が低い取組ほど早い、という推定
 function boutOrder(day) {
   const dd = SIM && SIM.days[day];
   if (!dd) return [];
+  if (SIM.realOrder) {
+    return dd.torikumi.map((b, i) => i).reverse();
+  }
   const score = b => rankPoint(rk(b.east).rank) + rankPoint(rk(b.west).rank);
   return dd.torikumi.map((b, i) => i).sort((a, b2) => {
     const d = score(dd.torikumi[a]) - score(dd.torikumi[b2]);
@@ -1791,7 +1795,7 @@ function buildSimFromReal(uptoDay) {
     }
     days[d] = bouts.length ? { day: d, torikumi: bouts } : null;
   }
-  return { key, rikishi, days };
+  return { key, rikishi, days, realOrder: true }; // 掲載順=進行の逆順（先頭が結び）
 }
 
 // 指定日の実結果が出揃っているか
