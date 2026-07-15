@@ -1602,8 +1602,9 @@ async function linkCredentials(loginId, password) {
     return { ok: false, msg: "パスワードの設定に失敗しました（" + e2.message + "）" };
   }
   IS_ANON = false;
-  G.profile.loginId = loginId;
-  save();
+  // onbStart()（新規登録）ではnewGame()が未実行でGが存在しない時点で呼ばれるため、
+  // ここでは存在する場合のみ更新する（新規登録側はこの関数の戻り値を見て自前で設定する）
+  if (typeof G !== "undefined" && G && G.profile) { G.profile.loginId = loginId; save(); }
   return { ok: true };
 }
 
@@ -1615,7 +1616,8 @@ async function signInWithLoginId(loginId, password) {
   if (error) return { ok: false, msg: "ログインIDまたはパスワードが違います" };
   MYID = data.user.id;
   IS_ANON = false;
-  const { data: rows } = await SB.from("players").select("*").eq("id", MYID).limit(1);
+  const { data: rows, error: rowsErr } = await SB.from("players").select("*").eq("id", MYID).limit(1);
+  if (rowsErr) console.warn("プレイヤー情報取得失敗:", rowsErr.message);
   const { data: saveRows, error: saveErr } = await SB.from("player_saves").select("full_state").eq("id", MYID).limit(1);
   if (saveErr) console.warn("フルセーブ取得失敗（player_savesテーブル未作成の可能性）:", saveErr.message);
   const fullState = saveRows && saveRows[0] && saveRows[0].full_state;
@@ -3062,7 +3064,7 @@ function renderOnboarding() {
     <div class="form-row"><input id="onb-comment" maxlength="20" placeholder="例：ごっつぁんです！（20文字まで）"></div>
     ${acctFields}
     <p class="muted center" style="margin:8px 0">持ち米 15,000合 からのスタート！<br>全プレイヤー共通の取組・各取組の直前まで受付</p>
-    <button class="btn btn-gold btn-wide" onclick="onbStart()">🥁 入門する</button>
+    <button class="btn btn-gold btn-wide" onclick="onbStart(this)">🥁 入門する</button>
     ${sbConfigured() ? `<button class="btn btn-ghost btn-wide" style="margin-top:6px" onclick="renderSignIn()">すでにログインIDをお持ちの方はこちら</button>` : ""}
   `);
 }
@@ -3124,44 +3126,54 @@ function onbIchimon(x) {
   UI.onb.ichimon = x;
   document.querySelectorAll(".ichimon-card").forEach(b => b.classList.toggle("sel", b.dataset.im === x));
 }
-async function onbStart() {
-  const name = $("#onb-name").value.trim().slice(0, 10);
-  if (!name) { alert("四股名を入力してください"); return; }
-  if (!UI.onb.ichimon) { alert("所属一門を選んでください"); return; }
+async function onbStart(btn) {
+  // 二重送信防止（通信待ち中の連打でアカウントリンク処理が重複しないように）
+  if (btn) { if (btn.disabled) return; btn.disabled = true; }
+  try {
+    const name = $("#onb-name").value.trim().slice(0, 10);
+    if (!name) { alert("四股名を入力してください"); return; }
+    if (!UI.onb.ichimon) { alert("所属一門を選んでください"); return; }
 
-  const wantsAccount = sbConfigured();
-  let loginId = "", pw = "";
-  if (wantsAccount) {
-    loginId = ($("#onb-loginid").value || "").trim();
-    pw = $("#onb-password").value || "";
-    const pw2 = $("#onb-password2").value || "";
-    if (!validLoginId(loginId)) { alert("ログインIDは半角英数字とアンダースコアで4〜20文字にしてください"); return; }
-    if (pw.length < 6) { alert("パスワードは6文字以上にしてください"); return; }
-    if (pw !== pw2) { alert("パスワードが一致しません"); return; }
-  }
-
-  await sbInit(); // 匿名セッションを確立（このUUIDのまま以後アカウント化する）
-  let linkedOk = false;
-  if (SB) {
-    const { data: dup } = await SB.from("players").select("id").eq("shikona", name).limit(1);
-    if (dup && dup.length) { alert("その四股名は既に使われています。別の四股名にしてください"); return; }
+    const wantsAccount = sbConfigured();
+    let loginId = "", pw = "";
     if (wantsAccount) {
-      const link = await linkCredentials(loginId, pw);
-      if (!link.ok) { alert(link.msg); return; }
-      linkedOk = true;
+      loginId = ($("#onb-loginid").value || "").trim();
+      pw = $("#onb-password").value || "";
+      const pw2 = $("#onb-password2").value || "";
+      if (!validLoginId(loginId)) { alert("ログインIDは半角英数字とアンダースコアで4〜20文字にしてください"); return; }
+      if (pw.length < 6) { alert("パスワードは6文字以上にしてください"); return; }
+      if (pw !== pw2) { alert("パスワードが一致しません"); return; }
     }
-  } else if (wantsAccount) {
-    console.warn("オンライン接続に失敗したため、ログインID設定はスキップされました");
-  }
 
-  newGame(name, UI.onb.ichimon, $("#onb-oshi").value, ($("#onb-comment") ? $("#onb-comment").value : "").trim());
-  if (linkedOk) { G.profile.loginId = loginId; save(); }
-  closeModal();
-  await ensureBashoState();
-  renderAll();
-  if (wantsAccount && !linkedOk) showToast("⚠ ログインID未設定", "通信状況によりスキップされました。プロフィール画面から後で設定できます");
-  showToast("🥁 入門の儀 完了", `${UI.onb.ichimon}一門・${name} 関の誕生だ！`);
-  showBeginnerGuide();
+    await sbInit(); // 匿名セッションを確立（このUUIDのまま以後アカウント化する）
+    let linkedOk = false;
+    if (SB) {
+      const { data: dup } = await SB.from("players").select("id").eq("shikona", name).limit(1);
+      if (dup && dup.length) { alert("その四股名は既に使われています。別の四股名にしてください"); return; }
+      if (wantsAccount) {
+        const link = await linkCredentials(loginId, pw);
+        if (!link.ok) { alert(link.msg); return; }
+        linkedOk = true;
+      }
+    } else if (wantsAccount) {
+      console.warn("オンライン接続に失敗したため、ログインID設定はスキップされました");
+    }
+
+    newGame(name, UI.onb.ichimon, $("#onb-oshi").value, ($("#onb-comment") ? $("#onb-comment").value : "").trim());
+    if (linkedOk) { G.profile.loginId = loginId; save(); }
+    await pushProfile(); // デバウンス(1.5秒)を待たず即時同期し、この時点でplayers/player_savesの行を確実に作成する
+    closeModal();
+    await ensureBashoState();
+    renderAll();
+    if (wantsAccount && !linkedOk) showToast("⚠ ログインID未設定", "通信状況によりスキップされました。プロフィール画面から後で設定できます");
+    showToast("🥁 入門の儀 完了", `${UI.onb.ichimon}一門・${name} 関の誕生だ！`);
+    showBeginnerGuide();
+  } catch (e) {
+    console.error("入門の儀に失敗しました:", e);
+    alert("エラーが発生しました。お手数ですが、もう一度お試しください。（" + (e && e.message || e) + "）");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // 親方の心得（入門直後のチュートリアル）
