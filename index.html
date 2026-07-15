@@ -2870,3 +2870,181 @@ function onQuizAnswer(idx, choice) {
   $(".modal").appendChild(div);
   renderHeader();
   // 結果を見せてから自動で閉じる
+  setTimeout(() => { closeModal(); renderAll(); }, 2800);
+}
+
+// ---------------- 親方・トースト・モーダル ----------------
+let oyakataTimer = null;
+function oyakataSay(type) {
+  // 駆け出しのうちは挨拶の代わりに手ほどきをする
+  if (type === "greet" && G && G.stats.totalBets < 5) type = "beginner";
+  const msg = pickRand(OYAKATA[type] || OYAKATA.greet);
+  const bub = $("#oyakata-bubble");
+  bub.textContent = msg;
+  bub.style.display = "block";
+  clearTimeout(oyakataTimer);
+  oyakataTimer = setTimeout(() => { bub.style.display = "none"; }, 5000);
+}
+function showToast(title, body) {
+  const area = $("#toast-area");
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = `<b>${title}</b><small>${body}</small>`;
+  area.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+function drainToasts() {
+  while (toastQueue.length) {
+    const t = toastQueue.shift();
+    showToast(`🏅 称号獲得「${esc(t.name)}」`, esc(t.desc));
+  }
+}
+function openModal(html) { $("#modal-area").innerHTML = `<div class="modal-bg"><div class="modal">${html}</div></div>`; }
+function closeModal() { $("#modal-area").innerHTML = ""; }
+
+// ---------------- オンボーディング（入門の儀） ----------------
+function renderOnboarding() {
+  const oshiOpts = rikishiByBanzuke().map(r => `<option value="${esc(r.name)}">${esc(r.name)}（${rankLabel(r.rank)}）</option>`).join("");
+  const acctFields = sbConfigured() ? `
+    <p style="font-size:13px;font-weight:bold;margin:10px 0 6px">ログインID・パスワードを設定（他の端末からもログインできます）</p>
+    <div class="form-row"><label>ログインID</label><input id="onb-loginid" maxlength="20" placeholder="半角英数字4〜20文字"></div>
+    <div class="form-row"><label>パスワード</label><input id="onb-password" type="password" maxlength="50" placeholder="6文字以上"></div>
+    <div class="form-row"><label>パスワード(確認)</label><input id="onb-password2" type="password" maxlength="50"></div>
+    <p class="muted" style="font-size:11px;line-height:1.6">※実在するメールアドレスは一切収集しません。パスワードはハッシュ化されて保存され、運営者を含め誰も元のパスワードを見ることはできません。</p>
+  ` : "";
+  openModal(`
+    <div class="onb-logo">トト相撲</div>
+    <div class="onb-sub">— 大相撲 取組予想ゲーム ONLINE・入門の儀 —</div>
+    <div class="form-row"><label>四股名</label><input id="onb-name" maxlength="10" placeholder="例：朝青空"></div>
+    <p style="font-size:13px;font-weight:bold;margin:10px 0 6px">所属一門を選ぶ</p>
+    <div class="ichimon-grid" id="onb-ichimon">
+      ${ICHIMON.map(x => `<button class="ichimon-card" data-im="${x}" onclick="onbIchimon('${x}')">${x}一門<br>
+        <span style="font-size:11px;font-weight:normal;opacity:.75">${(ICHIMON_REPS[x] || []).join("・")}</span></button>`).join("")}
+    </div>
+    <p style="font-size:13px;font-weight:bold;margin:10px 0 6px">推し力士を選ぶ</p>
+    <div class="form-row"><select id="onb-oshi">${oshiOpts}</select></div>
+    <p style="font-size:13px;font-weight:bold;margin:10px 0 6px">ひとこと（番付表で表示・任意）</p>
+    <div class="form-row"><input id="onb-comment" maxlength="20" placeholder="例：ごっつぁんです！（20文字まで）"></div>
+    ${acctFields}
+    <p class="muted center" style="margin:8px 0">持ち米 15,000合 からのスタート！<br>全プレイヤー共通の取組・各取組の直前まで受付</p>
+    <button class="btn btn-gold btn-wide" onclick="onbStart()">🥁 入門する</button>
+    ${sbConfigured() ? `<button class="btn btn-ghost btn-wide" style="margin-top:6px" onclick="renderSignIn()">すでにログインIDをお持ちの方はこちら</button>` : ""}
+  `);
+}
+
+// 別端末からの復帰ログイン画面
+function renderSignIn() {
+  openModal(`
+    <div class="onb-logo">トト相撲</div>
+    <div class="onb-sub">— ログイン —</div>
+    <div class="form-row"><label>ログインID</label><input id="si-loginid" maxlength="20"></div>
+    <div class="form-row"><label>パスワード</label><input id="si-password" type="password" maxlength="50"></div>
+    <p class="muted" style="font-size:11px;line-height:1.6">※持ち米・称号・推し力士・的中履歴・実績・現在の未精算ベットなど、これまでのデータがすべて復元されます。</p>
+    <div class="center" style="margin-top:10px"><button class="btn btn-primary btn-wide" onclick="onbSignIn()">ログイン</button></div>
+    <button class="btn btn-ghost btn-wide" style="margin-top:6px" onclick="renderOnboarding()">戻る</button>
+  `);
+}
+async function onbSignIn() {
+  const loginId = ($("#si-loginid").value || "").trim();
+  const pw = $("#si-password").value || "";
+  if (!loginId || !pw) { alert("ログインIDとパスワードを入力してください"); return; }
+  const res = await signInWithLoginId(loginId, pw);
+  if (!res.ok) { alert(res.msg); return; }
+  const row = res.row;
+  if (!row && !res.fullState) { alert("アカウント情報の取得に失敗しました。しばらくしてからもう一度お試しください。"); return; }
+
+  if (res.fullState) {
+    // 全データ（推し力士・実績・現在のベットなど）をそのまま復元
+    hydrateG(res.fullState);
+    G.profile.loginId = loginId;
+  } else {
+    // フルセーブが無い（この更新前にログインID設定した端末をまだ一度も開いていない）:
+    // 集計値だけの簡易復元。元の端末を一度開けば次回から全データが復元されるようになる
+    G = {
+      profile: { shikona: row.shikona, ichimon: row.ichimon, oshiName: RIKISHI[0].name, oshiId: RIKISHI[0].id, title: row.title || "t1_01", comment: row.comment || "", loginId },
+      points: (typeof row.points === "number") ? row.points : START_POINTS,
+      achievements: [row.title || "t1_01"],
+      stats: DEFAULT_STATS(),
+      bashoCount: row.basho_count || 1,
+      banzukeLevel: row.banzuke_level || 3,
+      bashoKey: null,
+      bets: [], ewBets: [], dayAgg: {},
+      yushoBet: null, sanshoBet: null,
+      pointsHistory: [], dayLog: [], betDays: [],
+      hitsThisBasho: row.hits || 0, betsThisBasho: row.bets || 0,
+      finishedProcessed: false, finalPoints: (typeof row.final_points === "number") ? row.final_points : null, banzukeAnnounced: false,
+      answeredQuiz: [], quizCatCorrect: {}
+    };
+  }
+  save();
+  closeModal();
+  await ensureBashoState();
+  renderAll();
+  showToast("🥁 おかえりなさい", `${G.profile.shikona} 関、ログインしました`);
+  if (!res.fullState) {
+    setTimeout(() => alert("持ち米・称号などの基本情報を復元しました。推し力士はお手数ですがプロフィールから選び直してください（元の端末をこの更新以降まだ開いていないため、実績・ベット履歴を復元できませんでした。元の端末を一度開けば、次回からは全データが復元されます）。"), 400);
+  }
+}
+function onbIchimon(x) {
+  UI.onb.ichimon = x;
+  document.querySelectorAll(".ichimon-card").forEach(b => b.classList.toggle("sel", b.dataset.im === x));
+}
+async function onbStart() {
+  const name = $("#onb-name").value.trim().slice(0, 10);
+  if (!name) { alert("四股名を入力してください"); return; }
+  if (!UI.onb.ichimon) { alert("所属一門を選んでください"); return; }
+
+  const wantsAccount = sbConfigured();
+  let loginId = "", pw = "";
+  if (wantsAccount) {
+    loginId = ($("#onb-loginid").value || "").trim();
+    pw = $("#onb-password").value || "";
+    const pw2 = $("#onb-password2").value || "";
+    if (!validLoginId(loginId)) { alert("ログインIDは半角英数字とアンダースコアで4〜20文字にしてください"); return; }
+    if (pw.length < 6) { alert("パスワードは6文字以上にしてください"); return; }
+    if (pw !== pw2) { alert("パスワードが一致しません"); return; }
+  }
+
+  await sbInit(); // 匿名セッションを確立（このUUIDのまま以後アカウント化する）
+  let linkedOk = false;
+  if (SB) {
+    const { data: dup } = await SB.from("players").select("id").eq("shikona", name).limit(1);
+    if (dup && dup.length) { alert("その四股名は既に使われています。別の四股名にしてください"); return; }
+    if (wantsAccount) {
+      const link = await linkCredentials(loginId, pw);
+      if (!link.ok) { alert(link.msg); return; }
+      linkedOk = true;
+    }
+  } else if (wantsAccount) {
+    console.warn("オンライン接続に失敗したため、ログインID設定はスキップされました");
+  }
+
+  newGame(name, UI.onb.ichimon, $("#onb-oshi").value, ($("#onb-comment") ? $("#onb-comment").value : "").trim());
+  if (linkedOk) { G.profile.loginId = loginId; save(); }
+  closeModal();
+  await ensureBashoState();
+  renderAll();
+  if (wantsAccount && !linkedOk) showToast("⚠ ログインID未設定", "通信状況によりスキップされました。プロフィール画面から後で設定できます");
+  showToast("🥁 入門の儀 完了", `${UI.onb.ichimon}一門・${name} 関の誕生だ！`);
+  showBeginnerGuide();
+}
+
+// 親方の心得（入門直後のチュートリアル）
+function showBeginnerGuide() {
+  openModal(`
+    <h2 style="color:var(--maroon)">👹 親方の心得</h2>
+    <div style="background:#fff;border:2px solid var(--maroon);border-radius:12px;padding:14px;font-size:14px;line-height:2">
+      「よう来たな、新弟子。トト相撲の稽古をつけてやろう。<br><br>
+      一、初日は<b>🚩懸賞のかかった一番</b>と、<b>⚖東西対抗戦</b>に賭けるのがオススメじゃ。どちらも<b>オッズ3倍</b>、覚えやすくて実入りも良い。<br><br>
+      一、取組は<b>各組の直前まで</b>受付。オッズは力士の調子で毎日動く生き物じゃ。<br><br>
+      一、<b>🍲ちゃんこ</b>と<b>📖相撲クイズ</b>は毎日タダで米が増える。忘れるでない。<br><br>
+      一、腕に覚えが出てきたら「場所予想」の<b>優勝予想</b>じゃ。早く当てるほど、千秋楽の持ち米が<b>丸ごと倍</b>になる大勝負よ。<br><br>
+      米が尽きたら……まあ、その時はわしに任せい。」
+    </div>
+    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll();setTimeout(()=>oyakataSay('beginner'),800)">🥁 稽古開始！</button>
+  `);
+}
+
+init();
+</script>
+</body></html>
