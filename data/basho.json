@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-15T07:51:38.137Z",
+ "updatedAt": "2026-07-15T08:01:48.564Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -719,14 +719,14 @@
    {
     "e": "若元春",
     "w": "藤青雲",
-    "k": null,
-    "win": null
+    "k": "突き落とし",
+    "win": "e"
    },
    {
     "e": "琴栄峰",
     "w": "高安",
-    "k": null,
-    "win": null
+    "k": "寄り切り",
+    "win": "e"
    },
    {
     "e": "朝乃山",
