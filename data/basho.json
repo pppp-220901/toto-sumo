@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-14T22:24:20.607Z",
+ "updatedAt": "2026-07-15T00:02:51.495Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -250,6 +250,10 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "「体重差3倍はやばい」「土俵下に吹っ飛んだ」無差別級対決で“縦一回転”の衝撃決着 ABEMA TIMES 2026/7/15 7:51",
+   "u": "https://news.yahoo.co.jp/articles/24cb6efb0355aed8aa9cc962e72dfb9d61c1b6dd"
+  },
+  {
    "t": "悲劇の横綱を語り継ぐ 名古屋場所で玉の海展、八角理事長も訪問 朝日新聞 2026/7/15 7:00",
    "u": "https://news.yahoo.co.jp/articles/5e1727589aa0e423435dbfa4f2690e7b893a9dd4"
   },
@@ -264,10 +268,6 @@
   {
    "t": "霧島「なんか、名古屋って感じがしますね」暑い暑い3日目、思い出す11年前…「勝ち負けを気にしないで」綱とりへ全勝守る 中日スポーツ 2026/7/15 6:00",
    "u": "https://news.yahoo.co.jp/articles/b9ae193b6076abb32487d642c5f4bf926a4f5c38"
-  },
-  {
-   "t": "「なんかヤバい人居るよ？」大相撲名古屋場所、行司の背後に座る袴姿の“偉人”にネット騒然「この格好で入れてもらえるんだ...」 THE DIGEST 2026/7/15 6:00",
-   "u": "https://news.yahoo.co.jp/articles/5c0407a6eca90593c013f1a1ebe4ebb198082201"
   }
  ],
  "days": {
