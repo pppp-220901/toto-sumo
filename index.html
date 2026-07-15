@@ -1595,7 +1595,12 @@ async function linkCredentials(loginId, password) {
     return { ok: false, msg: "ログインIDの設定に失敗しました（" + e1.message + "）" };
   }
   const { error: e2 } = await SB.auth.updateUser({ password });
-  if (e2) return { ok: false, msg: "パスワードの設定に失敗しました（" + e2.message + "）" };
+  if (e2) {
+    if (/different from the old/i.test(e2.message)) {
+      return { ok: false, msg: "このパスワードは既にこのアカウントに設定済みです。そのまま「ログイン」からお使いいただけます。" };
+    }
+    return { ok: false, msg: "パスワードの設定に失敗しました（" + e2.message + "）" };
+  }
   IS_ANON = false;
   G.profile.loginId = loginId;
   save();
@@ -2860,9 +2865,13 @@ async function onSaveProfile() {
   save(); renderHeader();
   showToast("⚙ プロフィール", "変更を保存しました");
 }
-function onReset() {
+async function onReset() {
   if (!confirm("全データを消去して廃業します。本当によろしいですか？")) return;
   if (!confirm("称号・実績もすべて失われます。最終確認です。")) return;
+  // Supabaseのセッションもサインアウトしておく。これをしないと、次の入門の儀で
+  // 古い（既にログインID・パスワードを設定済みの）匿名セッションが再利用されてしまい、
+  // 「同じパスワードは設定できません」等のエラーになる
+  if (SB) { try { await SB.auth.signOut(); } catch (e) { console.warn("サインアウト失敗:", e); } }
   ["gameState", "bets", "achievements", "quizHistory", "dailyBonus"].forEach(k => localStorage.removeItem(k));
   location.reload();
 }
