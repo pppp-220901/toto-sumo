@@ -1016,14 +1016,15 @@ function newGame(shikona, ichimon, oshiName, comment) {
 // ============================================================
 async function ensureBashoState() {
   const info = bashoInfo();
-  // 千秋楽を締められるか（実データモードでは15日目の結果が揃うまで待つ）
-  const canFinish = () => DATA_MODE !== "real" || !REAL || REAL.bashoKey !== G.bashoKey || realDayResolved(15);
+  // 千秋楽を締められるか（実データモードでは15日目の結果、かつ表彰発表(優勝・三賞)が
+  // 揃うまで待つ。表彰発表が来るまでは精算を保留し、場所を締めない）
+  const canFinish = () => DATA_MODE !== "real" || !REAL || REAL.bashoKey !== G.bashoKey || (realDayResolved(15) && !!REAL.awards);
   // 前の場所が終わっていたら締める
   if (G.bashoKey && (!info.current || info.current.key !== G.bashoKey) && !G.finishedProcessed) {
     SIM = simFor(G.bashoKey, 15);
     settlePending();
     if (canFinish()) await processFinish();
-    else G.finishedProcessed = true; // データ皆無なら諦めて締める
+    // 表彰発表待ちの間は締めずに保留（次回起動時に再チェック）
   }
   if (G.bashoKey && info.current && info.current.key === G.bashoKey && resultsReady(15) && !G.finishedProcessed) {
     SIM = simFor(G.bashoKey, 15);
@@ -1135,6 +1136,17 @@ function settlePending() {
         G.betsThisBasho = Math.max(0, G.betsThisBasho - 1);
         if (bout) batch.push({ day: bet.day, detail: { bet, bout, refund, net: 0 } });
       }
+      return;
+    }
+    // 不戦勝・不戦敗（休場による不成立）: 勝敗は記録されるが、賭けは通常精算せず全額返還
+    if (bout.result.fusen) {
+      bet.settled = true;
+      const refund = bet.amount + (bet.kAmount || 0);
+      bet.refundAmount = refund; bet.net = 0; bet.fusen = true;
+      G.points += refund;
+      s.totalBets = Math.max(0, s.totalBets - 1);
+      G.betsThisBasho = Math.max(0, G.betsThisBasho - 1);
+      batch.push({ day: bet.day, detail: { bet, bout, refund, net: 0, fusen: true } });
       return;
     }
     const pick = bet.side === "east" ? bout.east : bout.west;
@@ -1279,28 +1291,52 @@ async function processFinish() {
   const rngF = rngOf(G.bashoKey + "::final");
   const [y, m] = G.bashoKey.split("-").map(Number);
 
-  let maxW = -1;
-  RIKISHI.forEach(r => { maxW = Math.max(maxW, rikishi[r.id].wins); });
-  const contenders = RIKISHI.filter(r => rikishi[r.id].wins === maxW);
-  const champion = contenders[Math.floor(rngF() * contenders.length)];
-  const playoff = contenders.length > 1;
+  // 優勝・三賞は本家発表(REAL.awards)を最優先。シミュレーションモード、
+  // または名前が番付と一致せず解決できなかった場合のみヒューリスティックで推定する。
+  const useReal = DATA_MODE === "real" && REAL && REAL.bashoKey === G.bashoKey && !!REAL.awards;
+  let champion, maxW, playoff = false;
+  let shukunList = [], kantoList = [], ginoList = [];
 
-  const isM = r => r.rank.startsWith("M");
-  const nonSanyaku = RIKISHI.filter(r => !["Y", "O"].includes(r.rank));
-  const shukunCand = nonSanyaku.filter(r => rikishi[r.id].kinboshi >= 1 && rikishi[r.id].wins >= 8);
-  const shukun = shukunCand.length ? shukunCand.sort((a, c) => rikishi[c.id].kinboshi - rikishi[a.id].kinboshi || a.id - c.id)[0].name : "該当者なし";
-  const kantoCand = RIKISHI.filter(r => isM(r) && rikishi[r.id].wins >= 10);
-  const kanto = kantoCand.length ? kantoCand.sort((a, c) => rikishi[c.id].wins - rikishi[a.id].wins || a.id - c.id)[0].name : "該当者なし";
-  const ginoCand = nonSanyaku.filter(r => rikishi[r.id].wins >= 10 && r.name !== kanto);
-  const gino = (ginoCand.length && rngF() > 0.3) ? ginoCand[Math.floor(rngF() * ginoCand.length)].name : "該当者なし";
+  if (useReal) {
+    const a = REAL.awards;
+    champion = RIKISHI.find(r => r.name === a.yusho.name);
+    shukunList = a.shukun.map(x => x.name);
+    kantoList = a.kanto.map(x => x.name);
+    ginoList = a.gino.map(x => x.name);
+    if (champion) maxW = rikishi[champion.id].wins;
+    else console.warn("[トト相撲] 優勝力士名が番付と一致しません:", a.yusho.name, "→ 推定にフォールバック");
+  }
 
-  // 三賞予想の精算: 的中した賞1つにつき持ち米に倍率を重ね掛け
+  if (!champion) {
+    // ヒューリスティック（シミュレーションモード or 実データの名前解決に失敗した場合のみ）
+    let mw = -1;
+    RIKISHI.forEach(r => { mw = Math.max(mw, rikishi[r.id].wins); });
+    const contenders = RIKISHI.filter(r => rikishi[r.id].wins === mw);
+    champion = contenders[Math.floor(rngF() * contenders.length)];
+    maxW = mw;
+    playoff = contenders.length > 1;
+
+    const isM = r => r.rank.startsWith("M");
+    const nonSanyaku = RIKISHI.filter(r => !["Y", "O"].includes(r.rank));
+    const shukunCand = nonSanyaku.filter(r => rikishi[r.id].kinboshi >= 1 && rikishi[r.id].wins >= 8);
+    shukunList = shukunCand.length ? [shukunCand.sort((a2, c) => rikishi[c.id].kinboshi - rikishi[a2.id].kinboshi || a2.id - c.id)[0].name] : [];
+    const kantoCand = RIKISHI.filter(r => isM(r) && rikishi[r.id].wins >= 10);
+    kantoList = kantoCand.length ? [kantoCand.sort((a2, c) => rikishi[c.id].wins - rikishi[a2.id].wins || a2.id - c.id)[0].name] : [];
+    const ginoCand = nonSanyaku.filter(r => rikishi[r.id].wins >= 10 && !kantoList.includes(r.name));
+    ginoList = (ginoCand.length && rngF() > 0.3) ? [ginoCand[Math.floor(rngF() * ginoCand.length)].name] : [];
+  }
+
+  const shukun = shukunList.length ? shukunList.join("・") : "該当者なし";
+  const kanto = kantoList.length ? kantoList.join("・") : "該当者なし";
+  const gino = ginoList.length ? ginoList.join("・") : "該当者なし";
+
+  // 三賞予想の精算: 的中した賞1つにつき持ち米に倍率を重ね掛け（受賞者が複数でも予想はひとり）
   let sanshoResult = null;
   if (G.sanshoBet) {
     const sb = G.sanshoBet;
     const mult = sb.mult || SANSHO_ODDS[sb.day] || 1.2;
     if (sb.amount) G.points += sb.amount * 3; // 旧方式（予想料制）の返還
-    const r1 = sb.shukun === shukun, r2 = sb.kanto === kanto, r3 = sb.gino === gino;
+    const r1 = shukunList.includes(sb.shukun), r2 = kantoList.includes(sb.kanto), r3 = ginoList.includes(sb.gino);
     let gain = 0;
     [r1, r2, r3].forEach(hit => {
       if (!hit) return;
@@ -1776,11 +1812,12 @@ function buildSimFromReal(uptoDay) {
       if (x.win) {
         const winner = x.win === "e" ? e.id : w.id;
         const loser = x.win === "e" ? w.id : e.id;
-        bout.result = { winner, kimarite: x.k || "不明" };
+        bout.result = { winner, kimarite: x.k || (x.fusen ? "不戦勝" : "不明"), fusen: !!x.fusen };
         rikishi[winner].wins++; rikishi[loser].losses++;
         rikishi[e.id].opponents.push(w.id); rikishi[w.id].opponents.push(e.id);
         const lr = rk(loser), wr = rk(winner);
-        if ((lr.rank === "Y" || lr.rank === "O") && wr.rank[0] === "M") rikishi[winner].kinboshi++;
+        // 金星は実際に勝った場合のみ（不戦勝には付かない）
+        if (!x.fusen && (lr.rank === "Y" || lr.rank === "O") && wr.rank[0] === "M") rikishi[winner].kinboshi++;
       }
       bouts.push(bout);
     });
@@ -2124,7 +2161,7 @@ function boutCardHTML(bout, i, day) {
       const pickName = rk(sb.side === "east" ? bout.east : bout.west).name;
       let line;
       if (sb.refundAmount !== undefined) {
-        line = `<span>△ ${esc(pickName)}に${fmt(sb.amount)}合 → 不成立・返還</span><span>±0</span>`;
+        line = `<span>△ ${esc(pickName)}に${fmt(sb.amount)}合 → ${sb.fusen ? "不戦勝・返還" : "不成立・返還"}</span><span>±0</span>`;
       } else {
         const cls = sb.net >= 0 ? "hit" : "miss";
         const kNote = sb.kimarite ? `／決まり手「${esc(sb.kimarite)}」${sb.kHit ? "◎" : "✕"}` : "";
@@ -2206,7 +2243,8 @@ function showSettleModal(summaries) {
       }
       if (d.refund !== undefined) {
         const pickName = rk(d.bet.side === "east" ? d.bout.east : d.bout.west).name;
-        html += `<div class="result-line"><span>△ <b>${esc(pickName)}</b> — 取組不成立</span><span>返還 +${fmt(d.refund)}</span></div>`;
+        const label = d.fusen ? "不戦勝・返還" : "取組不成立";
+        html += `<div class="result-line"><span>△ <b>${esc(pickName)}</b> — ${label}</span><span>返還 +${fmt(d.refund)}</span></div>`;
         return;
       }
       const w = rk(d.bout.result.winner);
