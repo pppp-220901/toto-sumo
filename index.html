@@ -1625,6 +1625,7 @@ async function signInWithLoginId(loginId, password) {
 }
 async function pushProfile() {
   if (!SB || !MYID || !G) return;
+  const nowIso = new Date().toISOString();
   const row = {
     id: MYID,
     shikona: G.profile.shikona,
@@ -1639,7 +1640,7 @@ async function pushProfile() {
     final_points: (typeof G.finalPoints === "number") ? G.finalPoints : null,
     history: Object.fromEntries((G.pointsHistory || []).map(h => [String(h.day), h.points])),
     comment: G.profile.comment || "",
-    updated_at: new Date().toISOString()
+    updated_at: nowIso
   };
   let { error } = await SB.from("players").upsert(row);
   if (error && /final_points|history|comment/.test(error.message)) {
@@ -1654,8 +1655,32 @@ async function pushProfile() {
   // フルセーブ（推し力士・実績・現在のベットなど全データ）は非公開テーブルに保存。
   // playersテーブルは「誰でも閲覧可」ポリシーのランキング表示用なので、
   // 個人の詳細データはRLSで本人しか読めない別テーブルに分けている。
-  const { error: e2 } = await SB.from("player_saves").upsert({ id: MYID, full_state: G, updated_at: new Date().toISOString() });
-  if (e2) console.warn("フルセーブ同期失敗（player_savesテーブル未作成の可能性）:", e2.message);
+  const { error: e2 } = await SB.from("player_saves").upsert({ id: MYID, full_state: G, updated_at: nowIso });
+  if (e2) { console.warn("フルセーブ同期失敗（player_savesテーブル未作成の可能性）:", e2.message); return; }
+  // このタイムスタンプを「この端末が最後に確認したクラウドの状態」として記録しておく。
+  // 次回起動時、クラウド側がこれより新しければ（＝別端末が後から更新していれば）
+  // ローカルキャッシュより新しいクラウドの内容を優先する（reconcileCloud参照）
+  G.cloudSyncedAt = nowIso;
+  localStorage.setItem("gameState", JSON.stringify(G));
+}
+
+// ローカルキャッシュとクラウド(player_saves)のどちらが新しいかを起動時に確認し、
+// クラウドの方が新しければローカルより優先して復元する。
+// 「別端末で進めた後、古いキャッシュが残った端末を開くと巻き戻る」問題への対策。
+async function reconcileCloud() {
+  if (!SB || !MYID || !G) return;
+  try {
+    const { data: rows, error } = await SB.from("player_saves").select("full_state, updated_at").eq("id", MYID).limit(1);
+    if (error || !rows || !rows[0] || !rows[0].full_state) return;
+    const cloudTime = new Date(rows[0].updated_at).getTime();
+    const localTime = G.cloudSyncedAt ? new Date(G.cloudSyncedAt).getTime() : 0;
+    if (cloudTime > localTime) {
+      hydrateG(rows[0].full_state);
+      G.cloudSyncedAt = rows[0].updated_at;
+      localStorage.setItem("gameState", JSON.stringify(G));
+      showToast("☁ 最新データを復元", "別の端末での更新内容を読み込みました");
+    }
+  } catch (e) { console.warn("クラウド同期チェック失敗:", e); }
 }
 let pushTimer = null;
 function syncCloud() {
@@ -1973,6 +1998,7 @@ async function init() {
   applyRealBanzuke();
   if (!hasGame) { renderOnboarding(); return; }
   await sbInit();
+  await reconcileCloud();
   await ensureBashoState();
   renderAll();
   playPendingModals();
@@ -2699,6 +2725,7 @@ async function renderKometori() {
         <div class="center" style="margin-top:8px"><button class="btn btn-primary" onclick="onSetupAccount()">設定する</button></div>
       ` : `<p class="note">✅ ログインID「<b>${esc(G.profile.loginId || "")}</b>」設定済み。別の端末からもこのIDでログインできます。</p>`}
     </div>` : ""}
+    ${sbConfigured() ? `<button class="btn btn-ghost btn-wide" onclick="onLogout()" style="margin-top:6px">🚪 ログアウト</button>` : ""}
     <button class="btn btn-ghost btn-wide" onclick="onReset()" style="margin-top:6px;color:var(--red);border-color:var(--red)">⚠ 全データをリセット（廃業）</button>
     <p class="muted center" style="margin-top:10px">build ${BUILD_VERSION}</p>`;
   drawChart();
@@ -2866,6 +2893,19 @@ async function onSaveProfile() {
   }
   save(); renderHeader();
   showToast("⚙ プロフィール", "変更を保存しました");
+}
+// ログアウト（この端末をログイン前の状態に戻す。ログインID設定済みなら
+// そのIDで再ログインすればいつでも同じデータに戻れる。未設定の匿名アカウントは
+// 一度ログアウトすると二度とアクセスできなくなるため強めに警告する）
+async function onLogout() {
+  if (IS_ANON) {
+    if (!confirm("ログインID・パスワードが未設定です。ログアウトすると、今のデータには二度とアクセスできなくなります。本当によろしいですか？")) return;
+  } else {
+    if (!confirm(`ログアウトします。ログインID「${G.profile.loginId || ""}」で、この端末からいつでも同じデータに戻れます。よろしいですか？`)) return;
+  }
+  if (SB) { try { await SB.auth.signOut(); } catch (e) { console.warn("サインアウト失敗:", e); } }
+  ["gameState", "bets", "achievements", "quizHistory", "dailyBonus"].forEach(k => localStorage.removeItem(k));
+  location.reload();
 }
 async function onReset() {
   if (!confirm("全データを消去して廃業します。本当によろしいですか？")) return;
