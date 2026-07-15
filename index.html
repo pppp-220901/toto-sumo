@@ -477,7 +477,7 @@ const TITLES = [
   { id: "t3_08", cat: 3, name: "判官贔屓の",     desc: "怪我明け力士へのベットを5回的中", cond: s => s.injuredHits >= 5 },
   { id: "t3_09", cat: 3, name: "決まり手読みの", desc: "決まり手予想を10回的中", cond: s => s.kimariteHits >= 10 },
   { id: "t3_10", cat: 3, name: "二刀流の",       desc: "同じ取組で勝敗と決まり手を両方的中", cond: s => s.doubleHits >= 1 },
-  { id: "t3_11", cat: 3, name: "横綱殺しの",     desc: "横綱戦で格下力士への賭けを5回的中", cond: s => s.yokozunaKills >= 5 },
+  { id: "t3_11", cat: 3, name: "横綱キラー",     desc: "横綱戦で格下力士への賭けを5回的中", cond: s => s.yokozunaKills >= 5 },
 
   // --- 4. 継続・参加編 (10) ---
   { id: "t4_01", cat: 4, name: "三日土俵の",     desc: "3日分の取組に参加する", cond: s => s.daysPlayed >= 3 },
@@ -829,10 +829,20 @@ function placeEwBet(day, side, amount) {
   if (amount < 100) return { ok: false, msg: "100合以上を100合単位で入力してください" };
   G.ewBets = G.ewBets || [];
   const old = G.ewBets.findIndex(b => b.day === day && !b.settled);
-  if (old >= 0) { G.points += G.ewBets[old].amount; G.ewBets.splice(old, 1); }
+  if (old >= 0) {
+    // 同じ日の張り替え。総ベット数の二重カウントを避けるため、いったん取り消し扱いにする
+    G.points += G.ewBets[old].amount;
+    G.ewBets.splice(old, 1);
+    G.stats.totalBets = Math.max(0, G.stats.totalBets - 1);
+    G.betsThisBasho = Math.max(0, G.betsThisBasho - 1);
+  }
   if (amount > G.points) return { ok: false, msg: "持ち米が足りません" };
   G.points -= amount;
   G.ewBets.push({ day, side, amount, odds: ewOddsOf(day), settled: false });
+  // 東西対抗も1ベットとして総ベット数に加える（取組予想と同じ扱い）
+  G.stats.totalBets++;
+  G.betsThisBasho++;
+  if (!G.betDays.includes(day)) G.betDays.push(day);
   save();
   return { ok: true };
 }
@@ -841,6 +851,8 @@ function cancelEwBet(day) {
   const i = G.ewBets.findIndex(b => b.day === day && !b.settled);
   if (i < 0 || ewState(day) !== "open") return;
   G.points += G.ewBets[i].amount;
+  G.stats.totalBets = Math.max(0, G.stats.totalBets - 1);
+  G.betsThisBasho = Math.max(0, G.betsThisBasho - 1);
   G.ewBets.splice(i, 1);
   save();
 }
@@ -1228,14 +1240,21 @@ function settlePending() {
     const dd = SIM.days[b.day];
     const complete = dd && dd.torikumi.length && dd.torikumi.every(bt => bt.result);
     if (!complete) {
-      if (dayLongPast(b.day)) { b.settled = true; b.tie = true; b.net = 0; G.points += b.amount; }
+      if (dayLongPast(b.day)) {
+        // 取組不成立につき返還（不戦勝と同様、実質ノーカウント扱いにする）
+        b.settled = true; b.tie = true; b.net = 0; G.points += b.amount;
+        s.totalBets = Math.max(0, s.totalBets - 1);
+        G.betsThisBasho = Math.max(0, G.betsThisBasho - 1);
+      }
       return;
     }
     const c = ewCounts(b.day);
     b.settled = true;
     if (c.e === c.w) {
       b.tie = true; b.net = 0;
-      G.points += b.amount; // 引き分けは返還
+      G.points += b.amount; // 引き分けは返還（実質ノーカウント扱いにする）
+      s.totalBets = Math.max(0, s.totalBets - 1);
+      G.betsThisBasho = Math.max(0, G.betsThisBasho - 1);
       batch.push({ day: b.day, detail: { ewBet: b, counts: c, net: 0 } });
     } else {
       const winSide = c.e > c.w ? "east" : "west";
@@ -1245,6 +1264,7 @@ function settlePending() {
       else s.totalLost += b.amount;
       b.net = b.hit ? gain - b.amount : -b.amount;
       const agg = G.dayAgg[b.day] = G.dayAgg[b.day] || { bets: 0, hits: 0, net: 0, fav: 0, dog: 0 };
+      agg.bets++; if (b.hit) agg.hits++;
       agg.net += b.net;
       batch.push({ day: b.day, detail: { ewBet: b, counts: c, net: b.net } });
     }
@@ -1790,10 +1810,13 @@ function computeBanzuke(list, useFinal) {
 function todayStr() { const t = jstNow(); return t.y + "-" + String(t.m).padStart(2, "0") + "-" + String(t.d).padStart(2, "0"); }
 // 千秋楽後〜番付発表(水曜10時)までは謹慎期間: ちゃんこ・クイズ休止でスコア凍結
 function scoreFrozen() { return !!(G && G.finishedProcessed && !G.banzukeAnnounced); }
-function canChanko() { return !scoreFrozen() && localStorage.getItem("dailyBonus") !== todayStr(); }
+// 受け取り済み日はG(=同期・保存対象)側で管理する。以前はlocalStorageの
+// 別キー("dailyBonus")のみで管理しており、ログアウト・リセット時にそのキーが
+// 消えてしまうため、再ログインするたびにボーナスを再度受け取れてしまう不具合があった。
+function canChanko() { return !scoreFrozen() && G.lastChankoDate !== todayStr(); }
 function takeChanko() {
   if (!canChanko()) return false;
-  localStorage.setItem("dailyBonus", todayStr());
+  G.lastChankoDate = todayStr();
   G.points += 1000;
   G.stats.chankoCount++;
   G.stats.totalEarned += 1000;
@@ -2144,7 +2167,7 @@ function renderTorikumi() {
     displayOrder(day).forEach(i => { cards += boutCardHTML(dd.torikumi[i], i, day); });
     html += `
     <details class="acc" ${openToday ? "open" : ""} ontoggle="UI.accToday=this.open">
-      <summary class="day-banner">⚔ ${dayKanji(day)} 取組・結果
+      <summary class="day-banner">💪 ${dayKanji(day)} 取組・結果
         <br><span style="font-size:11px">確定 ${done}/${n}番 ${openCount ? `・受付中 ${openCount}番` : "・全取組終了"}</span>
         <span class="acc-arrow">▼</span>
       </summary>
