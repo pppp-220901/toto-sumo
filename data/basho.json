@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-15T08:01:48.564Z",
+ "updatedAt": "2026-07-15T08:11:59.549Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -707,14 +707,14 @@
    {
     "e": "正代",
     "w": "一山本",
-    "k": null,
-    "win": null
+    "k": "押し出し",
+    "win": "w"
    },
    {
     "e": "宇良",
     "w": "欧勝馬",
-    "k": null,
-    "win": null
+    "k": "上手出し投げ",
+    "win": "e"
    },
    {
     "e": "若元春",
