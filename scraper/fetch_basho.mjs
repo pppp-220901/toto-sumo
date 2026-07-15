@@ -28,8 +28,9 @@ function currentBasho() {
     for (const m of [1, 3, 5, 7, 9, 11]) {
       const start = Date.UTC(y, m - 1, secondSunday(y, m));
       const day = Math.floor((today - start) / 86400e3) + 1;
-      if (day >= 1 && day <= 16) { // 千秋楽翌日も1回動かす(最終結果回収)
-        return { y, m, day: Math.min(day, 15), key: `${y}-${String(m).padStart(2, "0")}` };
+      // 千秋楽(15日目)翌日から表彰発表ページの取得を試み、最大2週間リトライする
+      if (day >= 1 && day <= 30) {
+        return { y, m, day: Math.min(day, 15), rawDay: day, key: `${y}-${String(m).padStart(2, "0")}` };
       }
     }
   }
@@ -153,6 +154,41 @@ function parseNews(html) {
   return out;
 }
 
+// ---------- 表彰力士（幕内優勝・三賞）のパース ----------
+// https://sports.yahoo.co.jp/sumo/basho/{yyyymm} の「表彰力士」表を対象にする。
+// 同じ賞に複数受賞者がいる場合、2人目以降の行は賞名セルが空（rowspan）になる想定。
+const AWARD_CATS = ["幕内優勝", "殊勲賞", "敢闘賞", "技能賞", "十両優勝"];
+function parseAwards(html) {
+  const i = html.indexOf("表彰力士");
+  if (i < 0) return null;
+  const t0 = html.indexOf("<table", i);
+  if (t0 < 0) return null;
+  const t1 = html.indexOf("</table>", t0);
+  const table = html.slice(t0, t1);
+  const rows = table.split(/<tr[\s>]/).slice(1);
+  const result = { yusho: null, shukun: [], kanto: [], gino: [] };
+  let curCat = null;
+  for (const row of rows) {
+    const tokens = row
+      .replace(/<[^>]*>/g, "\n")
+      .replace(/&nbsp;/g, " ")
+      .split("\n").map(s => s.trim()).filter(Boolean);
+    if (!tokens.length) continue;
+    let rest = tokens;
+    if (AWARD_CATS.includes(tokens[0])) { curCat = tokens[0]; rest = tokens.slice(1); }
+    if (!curCat || !rest.length) continue;
+    const [name, rank, record, heya, count] = rest;
+    if (!name || name === "該当なし") continue;
+    const entry = { name, rank: rank || null, record: record || null, heya: heya || null };
+    if (curCat === "幕内優勝") { if (!result.yusho) result.yusho = entry; }
+    else if (curCat === "殊勲賞") result.shukun.push(entry);
+    else if (curCat === "敢闘賞") result.kanto.push(entry);
+    else if (curCat === "技能賞") result.gino.push(entry);
+    // 十両優勝は今のゲームでは未使用のため保存しない
+  }
+  return result.yusho ? result : null; // 優勝力士が取れなければ未発表とみなす
+}
+
 // ---------- 勝者判定（マーク優先、なければ星取差分） ----------
 // recMap: name -> {w, l} 直近の既知星取。片方が十両から上がってきた場合でも
 // 幕内側の勝敗の増分だけで判定できるよう、勝ち数と負け数の両方を見る。
@@ -191,6 +227,16 @@ if (!basho) {
 }
 console.log(`対象: ${basho.key} / ${basho.day}日目まで（+翌日の取組）`);
 
+// 既存データを先に読む（表彰発表まで取得済みならこれ以上巡回しない）
+let prev = null;
+if (existsSync(OUT)) {
+  try { prev = JSON.parse(readFileSync(OUT, "utf8")); } catch (e) { }
+}
+if (prev && prev.bashoKey === basho.key && prev.awards && basho.rawDay > 15) {
+  console.log("表彰発表まで取得済み。今場所の巡回を終了します。");
+  process.exit(0);
+}
+
 const yyyymm = basho.key.replace("-", "");
 const days = {};
 const banzuke = new Map(); // name -> rank（初出を採用）
@@ -223,7 +269,10 @@ for (const d of fetchDays) {
     banzuke.has(b.eName) || banzuke.set(b.eName, { rank: b.eRank, side: b.eSide });
     banzuke.has(b.wName) || banzuke.set(b.wName, { rank: b.wRank, side: b.wSide });
     const win = decideWinner(b, recMap);
-    bouts.push({ e: b.eName, w: b.wName, k: (b.k && b.k !== "取組前") ? b.k : null, win });
+    // 不戦勝・不戦敗（休場による不成立）: □/■マーク、または決まり手欄に「不戦」を含む場合
+    const isMarkFusen = m => m === "□" || m === "■";
+    const fusen = isMarkFusen(b.eMark) || isMarkFusen(b.wMark) || (b.k && b.k.includes("不戦"));
+    bouts.push({ e: b.eName, w: b.wName, k: (b.k && b.k !== "取組前") ? b.k : null, win, fusen: !!fusen });
   }
   // 星取更新（結果確定行のみ・勝敗両方を記録）
   for (const b of parsed) {
@@ -244,16 +293,28 @@ for (const d of fetchDays) {
   await new Promise(r => setTimeout(r, 1500)); // 行儀よく1.5秒待つ
 }
 
-if (!Object.keys(days).length) {
+// 表彰発表（幕内優勝・三賞）: 千秋楽翌日以降のみ取得を試みる
+let awards = null;
+if (basho.rawDay > 15) {
+  try {
+    const aRes = await fetch(`https://sports.yahoo.co.jp/sumo/basho/${yyyymm}`, { headers: { "User-Agent": UA } });
+    if (aRes.ok) {
+      awards = parseAwards(await aRes.text());
+      console.log(awards ? `表彰発表を取得: 優勝 ${awards.yusho.name}` : "表彰発表: まだ掲載されていません（翌回リトライ）");
+    } else {
+      console.log(`表彰発表ページ: HTTP ${aRes.status} スキップ`);
+    }
+  } catch (e) {
+    console.log("表彰発表ページ取得失敗:", e.message);
+  }
+}
+
+if (!Object.keys(days).length && !awards) {
   console.log("有効なデータが取れませんでした（既存ファイルを保持）");
   process.exit(0);
 }
 
 // 既存データとマージ（過去日の確定結果は上書きしない安全策）
-let prev = null;
-if (existsSync(OUT)) {
-  try { prev = JSON.parse(readFileSync(OUT, "utf8")); } catch (e) { }
-}
 let kyujoLog = {};
 let injuredCarry = [];
 if (prev && prev.bashoKey === basho.key) {
@@ -268,6 +329,7 @@ if (prev && prev.bashoKey === basho.key) {
   kyujoLog = prev.kyujoLog || {};
   injuredCarry = prev.injuredCarry || [];
   if (!news.length && prev.news) news = prev.news;
+  if (!awards && prev.awards) awards = prev.awards; // 表彰発表は一度取れたら保持
 } else if (prev && prev.kyujoLog) {
   // 場所が替わった: 前場所で5日以上休場した力士 → 今場所「怪我明け」(仕様4.2 B条件)
   const count = {};
@@ -286,6 +348,7 @@ const out = {
   kyujoLog,
   injuredCarry,
   news,
+  awards,
   days
 };
 mkdirSync("data", { recursive: true });
