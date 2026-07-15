@@ -663,7 +663,8 @@ const DEFAULT_STATS = () => ({
 let G = null;        // 永続ゲーム状態
 let SIM = null;      // 今場所の共通シミュレーション（毎回再構築・非保存）
 let SB = null;       // Supabaseクライアント
-let MYID = null;     // 匿名ユーザーID
+let MYID = null;     // ユーザーID（匿名 or ログインID紐付け後も同じUUID）
+let IS_ANON = true;  // ログインID・パスワード未設定（匿名のまま）か
 let LEADER = null;   // ランキングキャッシュ
 let toastQueue = [];
 let pendingModals = []; // 起動時に順番に見せる演出 {type, data}
@@ -971,20 +972,24 @@ function save() {
   localStorage.setItem("achievements", JSON.stringify(G.achievements));
   syncCloud();
 }
+// Gオブジェクトの正規化（localStorage・クラウド復元のどちらからも使う共通処理）
+function hydrateG(obj) {
+  G = obj;
+  G.stats = Object.assign(DEFAULT_STATS(), G.stats || {});
+  G.bets = G.bets || [];
+  G.ewBets = G.ewBets || [];
+  G.dayAgg = G.dayAgg || {};
+  // 旧セーブデータ移行: 推し力士をIDから名前に
+  if (!G.profile.oshiName) {
+    const r = RIKISHI.find(x => x.id === G.profile.oshiId);
+    G.profile.oshiName = r ? r.name : RIKISHI[0].name;
+  }
+}
 function load() {
   const raw = localStorage.getItem("gameState");
   if (!raw) return false;
   try {
-    G = JSON.parse(raw);
-    G.stats = Object.assign(DEFAULT_STATS(), G.stats || {});
-    G.bets = G.bets || [];
-    G.ewBets = G.ewBets || [];
-    G.dayAgg = G.dayAgg || {};
-    // 旧セーブデータ移行: 推し力士をIDから名前に
-    if (!G.profile.oshiName) {
-      const r = RIKISHI.find(x => x.id === G.profile.oshiId);
-      G.profile.oshiName = r ? r.name : RIKISHI[0].name;
-    }
+    hydrateG(JSON.parse(raw));
     return true;
   } catch (e) { return false; }
 }
@@ -1541,9 +1546,52 @@ async function sbInit() {
       session = data.session;
     }
     MYID = session.user.id;
+    IS_ANON = !!session.user.is_anonymous;
     await pushProfile();
     return true;
   } catch (e) { console.warn("Supabase接続失敗:", e); SB = null; return false; }
+}
+
+// ============================================================
+// ログインID・パスワード（実在メールアドレスは一切収集しない）
+// ============================================================
+// Supabase Authはメール/電話番号を識別子として要求するため、ユーザーには見せない
+// 内部専用の偽メール(loginId@toto-sumo.local)を組み立てて使う。
+function fakeEmailOf(loginId) { return `${loginId.toLowerCase()}@toto-sumo.local`; }
+function validLoginId(s) { return /^[a-zA-Z0-9_]{4,20}$/.test(s); }
+
+// 現在の匿名セッションにログインID・パスワードを紐付ける（同じUUIDのまま永続化。
+// 既存の四股名・持ち米・実績はそのまま引き継がれる）
+async function linkCredentials(loginId, password) {
+  if (!SB) return { ok: false, msg: "オフラインのため設定できません" };
+  if (!validLoginId(loginId)) return { ok: false, msg: "ログインIDは半角英数字とアンダースコアで4〜20文字にしてください" };
+  if (password.length < 6) return { ok: false, msg: "パスワードは6文字以上にしてください" };
+  const { error: e1 } = await SB.auth.updateUser({ email: fakeEmailOf(loginId) });
+  if (e1) {
+    if (/already|registered|exists/i.test(e1.message)) return { ok: false, msg: "そのログインIDは既に使われています" };
+    return { ok: false, msg: "ログインIDの設定に失敗しました（" + e1.message + "）" };
+  }
+  const { error: e2 } = await SB.auth.updateUser({ password });
+  if (e2) return { ok: false, msg: "パスワードの設定に失敗しました（" + e2.message + "）" };
+  IS_ANON = false;
+  G.profile.loginId = loginId;
+  save();
+  return { ok: true };
+}
+
+// 別端末から既存アカウントにログイン（成功時、以後の同期はこのUUIDで行われる）
+async function signInWithLoginId(loginId, password) {
+  if (!sbConfigured()) return { ok: false, msg: "オフラインのため利用できません" };
+  if (!SB) SB = window.supabase.createClient(CONFIG.url, CONFIG.anonKey);
+  const { data, error } = await SB.auth.signInWithPassword({ email: fakeEmailOf(loginId), password });
+  if (error) return { ok: false, msg: "ログインIDまたはパスワードが違います" };
+  MYID = data.user.id;
+  IS_ANON = false;
+  const { data: rows } = await SB.from("players").select("*").eq("id", MYID).limit(1);
+  const { data: saveRows, error: saveErr } = await SB.from("player_saves").select("full_state").eq("id", MYID).limit(1);
+  if (saveErr) console.warn("フルセーブ取得失敗（player_savesテーブル未作成の可能性）:", saveErr.message);
+  const fullState = saveRows && saveRows[0] && saveRows[0].full_state;
+  return { ok: true, row: rows && rows[0], fullState, loginId };
 }
 async function pushProfile() {
   if (!SB || !MYID || !G) return;
@@ -1572,6 +1620,12 @@ async function pushProfile() {
     ({ error } = await SB.from("players").upsert(row));
   }
   if (error) console.warn("同期失敗:", error.message);
+
+  // フルセーブ（推し力士・実績・現在のベットなど全データ）は非公開テーブルに保存。
+  // playersテーブルは「誰でも閲覧可」ポリシーのランキング表示用なので、
+  // 個人の詳細データはRLSで本人しか読めない別テーブルに分けている。
+  const { error: e2 } = await SB.from("player_saves").upsert({ id: MYID, full_state: G, updated_at: new Date().toISOString() });
+  if (e2) console.warn("フルセーブ同期失敗（player_savesテーブル未作成の可能性）:", e2.message);
 }
 let pushTimer = null;
 function syncCloud() {
@@ -1868,6 +1922,11 @@ async function init() {
   await ensureBashoState();
   renderAll();
   playPendingModals();
+  // 匿名のまま(ログインID未設定)の既存プレイヤーへ、一度だけ設定を案内
+  if (SB && IS_ANON && !G.acctPromptShown) {
+    G.acctPromptShown = true; save();
+    setTimeout(() => showToast("🔑 ヒント", "米取表タブの「アカウント設定」からログインIDを設定すると、他の端末からも続けられます"), 1500);
+  }
   setTimeout(() => oyakataSay("greet"), 800);
   setInterval(() => { renderHeader(); if (UI.tab === "torikumi" && !UI.openBet) renderTorikumi(); }, 60000);
 }
@@ -2547,6 +2606,18 @@ async function renderKometori() {
       ${profileLocked() ? `<div class="note">🔒 一門・推し力士の変更は<b>8日目まで</b>。9日目以降は場所が終わるまで変更できません（四股名は変更可）。</div>` : ""}
       <div class="center" style="margin-top:8px"><button class="btn btn-primary" onclick="onSaveProfile()">変更を保存</button></div>
     </div>
+
+    ${sbConfigured() ? `<div class="section-title">🔑 アカウント設定</div>
+    <div class="card">
+      ${IS_ANON ? `
+        <p class="note">ログインID・パスワードを設定すると、別の端末からも同じ持ち米・称号で続けられます（設定するまでは、このブラウザのデータを消すとランキング上の記録に再アクセスできなくなります）。</p>
+        <div class="form-row"><label>ログインID</label><input id="acct-loginid" maxlength="20" placeholder="半角英数字4〜20文字"></div>
+        <div class="form-row"><label>パスワード</label><input id="acct-password" type="password" maxlength="50" placeholder="6文字以上"></div>
+        <div class="form-row"><label>パスワード(確認)</label><input id="acct-password2" type="password" maxlength="50"></div>
+        <p class="muted" style="font-size:11px;line-height:1.6">※実在するメールアドレスは一切収集しません。パスワードはハッシュ化されて保存され、運営者を含め誰も元のパスワードを見ることはできません。</p>
+        <div class="center" style="margin-top:8px"><button class="btn btn-primary" onclick="onSetupAccount()">設定する</button></div>
+      ` : `<p class="note">✅ ログインID「<b>${esc(G.profile.loginId || "")}</b>」設定済み。別の端末からもこのIDでログインできます。</p>`}
+    </div>` : ""}
     <button class="btn btn-ghost btn-wide" onclick="onReset()" style="margin-top:6px;color:var(--red);border-color:var(--red)">⚠ 全データをリセット（廃業）</button>
     <p class="muted center" style="margin-top:10px">build ${BUILD_VERSION}</p>`;
   drawChart();
@@ -2627,9 +2698,26 @@ function titleGalleryHTML() {
 }
 function selectTitle(id) { G.profile.title = id; save(); renderHeader(); $("#title-area").innerHTML = titleGalleryHTML(); }
 
-function onSaveProfile() {
+async function onSetupAccount() {
+  const loginId = ($("#acct-loginid").value || "").trim();
+  const pw = $("#acct-password").value || "";
+  const pw2 = $("#acct-password2").value || "";
+  if (!validLoginId(loginId)) { alert("ログインIDは半角英数字とアンダースコアで4〜20文字にしてください"); return; }
+  if (pw.length < 6) { alert("パスワードは6文字以上にしてください"); return; }
+  if (pw !== pw2) { alert("パスワードが一致しません"); return; }
+  const res = await linkCredentials(loginId, pw);
+  if (!res.ok) { alert(res.msg); return; }
+  showToast("🔑 アカウント設定完了", `ログインID「${loginId}」で他の端末からもログインできます`);
+  renderKometori();
+}
+
+async function onSaveProfile() {
   const name = $("#pf-name").value.trim().slice(0, 10);
   if (!name) { alert("四股名を入力してください"); return; }
+  if (name !== G.profile.shikona && SB && MYID) {
+    const { data: dup } = await SB.from("players").select("id").eq("shikona", name).neq("id", MYID).limit(1);
+    if (dup && dup.length) { alert("その四股名は既に使われています。別の四股名にしてください"); return; }
+  }
   G.profile.shikona = name;
   G.profile.comment = ($("#pf-comment") ? $("#pf-comment").value : "").trim().slice(0, 20);
   if (profileLocked()) {
@@ -2782,91 +2870,3 @@ function onQuizAnswer(idx, choice) {
   $(".modal").appendChild(div);
   renderHeader();
   // 結果を見せてから自動で閉じる
-  setTimeout(() => { closeModal(); renderAll(); }, 2800);
-}
-
-// ---------------- 親方・トースト・モーダル ----------------
-let oyakataTimer = null;
-function oyakataSay(type) {
-  // 駆け出しのうちは挨拶の代わりに手ほどきをする
-  if (type === "greet" && G && G.stats.totalBets < 5) type = "beginner";
-  const msg = pickRand(OYAKATA[type] || OYAKATA.greet);
-  const bub = $("#oyakata-bubble");
-  bub.textContent = msg;
-  bub.style.display = "block";
-  clearTimeout(oyakataTimer);
-  oyakataTimer = setTimeout(() => { bub.style.display = "none"; }, 5000);
-}
-function showToast(title, body) {
-  const area = $("#toast-area");
-  const t = document.createElement("div");
-  t.className = "toast";
-  t.innerHTML = `<b>${title}</b><small>${body}</small>`;
-  area.appendChild(t);
-  setTimeout(() => t.remove(), 4000);
-}
-function drainToasts() {
-  while (toastQueue.length) {
-    const t = toastQueue.shift();
-    showToast(`🏅 称号獲得「${esc(t.name)}」`, esc(t.desc));
-  }
-}
-function openModal(html) { $("#modal-area").innerHTML = `<div class="modal-bg"><div class="modal">${html}</div></div>`; }
-function closeModal() { $("#modal-area").innerHTML = ""; }
-
-// ---------------- オンボーディング（入門の儀） ----------------
-function renderOnboarding() {
-  const oshiOpts = rikishiByBanzuke().map(r => `<option value="${esc(r.name)}">${esc(r.name)}（${rankLabel(r.rank)}）</option>`).join("");
-  openModal(`
-    <div class="onb-logo">トト相撲</div>
-    <div class="onb-sub">— 大相撲 取組予想ゲーム ONLINE・入門の儀 —</div>
-    <div class="form-row"><label>四股名</label><input id="onb-name" maxlength="10" placeholder="例：朝青空"></div>
-    <p style="font-size:13px;font-weight:bold;margin:10px 0 6px">所属一門を選ぶ</p>
-    <div class="ichimon-grid" id="onb-ichimon">
-      ${ICHIMON.map(x => `<button class="ichimon-card" data-im="${x}" onclick="onbIchimon('${x}')">${x}一門<br>
-        <span style="font-size:11px;font-weight:normal;opacity:.75">${(ICHIMON_REPS[x] || []).join("・")}</span></button>`).join("")}
-    </div>
-    <p style="font-size:13px;font-weight:bold;margin:10px 0 6px">推し力士を選ぶ</p>
-    <div class="form-row"><select id="onb-oshi">${oshiOpts}</select></div>
-    <p style="font-size:13px;font-weight:bold;margin:10px 0 6px">ひとこと（番付表で表示・任意）</p>
-    <div class="form-row"><input id="onb-comment" maxlength="20" placeholder="例：ごっつぁんです！（20文字まで）"></div>
-    <p class="muted center" style="margin:8px 0">持ち米 15,000合 からのスタート！<br>全プレイヤー共通の取組・各取組の直前まで受付</p>
-    <button class="btn btn-gold btn-wide" onclick="onbStart()">🥁 入門する</button>
-  `);
-}
-function onbIchimon(x) {
-  UI.onb.ichimon = x;
-  document.querySelectorAll(".ichimon-card").forEach(b => b.classList.toggle("sel", b.dataset.im === x));
-}
-async function onbStart() {
-  const name = $("#onb-name").value.trim().slice(0, 10);
-  if (!name) { alert("四股名を入力してください"); return; }
-  if (!UI.onb.ichimon) { alert("所属一門を選んでください"); return; }
-  newGame(name, UI.onb.ichimon, $("#onb-oshi").value, ($("#onb-comment") ? $("#onb-comment").value : "").trim());
-  closeModal();
-  await sbInit();
-  await ensureBashoState();
-  renderAll();
-  showToast("🥁 入門の儀 完了", `${UI.onb.ichimon}一門・${name} 関の誕生だ！`);
-  showBeginnerGuide();
-}
-
-// 親方の心得（入門直後のチュートリアル）
-function showBeginnerGuide() {
-  openModal(`
-    <h2 style="color:var(--maroon)">👹 親方の心得</h2>
-    <div style="background:#fff;border:2px solid var(--maroon);border-radius:12px;padding:14px;font-size:14px;line-height:2">
-      「よう来たな、新弟子。トト相撲の稽古をつけてやろう。<br><br>
-      一、初日は<b>🚩懸賞のかかった一番</b>と、<b>⚖東西対抗戦</b>に賭けるのがオススメじゃ。どちらも<b>オッズ3倍</b>、覚えやすくて実入りも良い。<br><br>
-      一、取組は<b>各組の直前まで</b>受付。オッズは力士の調子で毎日動く生き物じゃ。<br><br>
-      一、<b>🍲ちゃんこ</b>と<b>📖相撲クイズ</b>は毎日タダで米が増える。忘れるでない。<br><br>
-      一、腕に覚えが出てきたら「場所予想」の<b>優勝予想</b>じゃ。早く当てるほど、千秋楽の持ち米が<b>丸ごと倍</b>になる大勝負よ。<br><br>
-      米が尽きたら……まあ、その時はわしに任せい。」
-    </div>
-    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll();setTimeout(()=>oyakataSay('beginner'),800)">🥁 稽古開始！</button>
-  `);
-}
-
-init();
-</script>
-</body></html>
