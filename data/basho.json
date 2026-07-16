@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-16T08:39:46.351Z",
+ "updatedAt": "2026-07-16T08:49:57.590Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -259,24 +259,24 @@
  "injuredCarry": [],
  "news": [
   {
-   "t": "平幕の若ノ勝 高校の先輩・翔猿をパワーで圧倒し5連勝！獅司に続いて全勝守る スポニチアネックス 2026/7/16 16:53",
-   "u": "https://news.yahoo.co.jp/articles/e6ed3f94a7aaf42e01d6e96d105a4361bfae22e9"
+   "t": "大の里が２勝目 美ノ海に勝つ 前日は物言いの末、敗戦 スポーツ報知 2026/7/16 17:45",
+   "u": "https://news.yahoo.co.jp/articles/5d0268c7f9ff9b633f250ef18829ad3fc51177ee"
   },
   {
-   "t": "大相撲で騒然「前代未聞だ」館内緊迫の30秒 超異例の出来事「暑さ？」「すごいハプニング」 THE ANSWER 2026/7/16 16:47",
-   "u": "https://news.yahoo.co.jp/articles/cdf4303fbb0fa7249e1a849168b9625dbc221fdf"
+   "t": "大関復帰を目指す安青錦が４勝目 カド番の琴桜から勝利 スポーツ報知 2026/7/16 17:42",
+   "u": "https://news.yahoo.co.jp/articles/6ad71e6cf4df0292dee5d5ada2916a743e561baa"
   },
   {
-   "t": "最年長関取の41歳玉鷲が史上９人目の通算900勝「喜んでいる場合じゃない」表情緩めず 日刊スポーツ 2026/7/16 16:41",
-   "u": "https://news.yahoo.co.jp/articles/f89eb99badddf08d6b41c68b65042193f08f209e"
+   "t": "カド番大関・琴桜、大関復帰目指す安青錦との“仁義なき戦い”に敗れ2敗目、無言で眉間にしわ スポニチアネックス 2026/7/16 17:41",
+   "u": "https://news.yahoo.co.jp/articles/f4c16e5f55e1685a7caba7929f99eeee58892d7a"
   },
   {
-   "t": "炎鵬が３敗目「全部が中途半端」行司軍配差し違えで黒星 前日痛めた左腕は「大丈夫」 日刊スポーツ 2026/7/16 16:40",
-   "u": "https://news.yahoo.co.jp/articles/202d6895ef20001aa9c63e8b0a3e09c6ba9f4179"
+   "t": "カド番の琴桜が２敗目 大関復帰を目指す安青錦に敗れる スポーツ報知 2026/7/16 17:40",
+   "u": "https://news.yahoo.co.jp/articles/eee34bc6764923cdbd1999ef975607c32a22972d"
   },
   {
-   "t": "幕下のイケメン注目力士・大森 圧力負けで今場所初黒星「修正して頑張りたい」 スポーツ報知 2026/7/16 16:36",
-   "u": "https://news.yahoo.co.jp/articles/0596c7721e113dcc5610dfa809923d609f3003b3"
+   "t": "霧島 綱取りへ痛恨の初黒星 平戸海に不覚…昇進にはハイレベルな優勝が条件 スポーツ報知 2026/7/16 17:39",
+   "u": "https://news.yahoo.co.jp/articles/8988d6f0e2f4d36f4577ffdde549bb855b1f2344"
   }
  ],
  "awards": null,
@@ -888,15 +888,15 @@
    {
     "e": "美ノ海",
     "w": "大の里",
-    "k": null,
-    "win": null,
+    "k": "押し出し",
+    "win": "w",
     "fusen": false
    },
    {
     "e": "霧島",
     "w": "平戸海",
-    "k": null,
-    "win": null,
+    "k": "押し出し",
+    "win": "w",
     "fusen": false
    },
    {
