@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-16T08:49:57.590Z",
+ "updatedAt": "2026-07-16T09:00:08.790Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -259,24 +259,24 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "綱取りの霧島が初黒星 大の里は２勝目 豊昇龍、大関復帰を目指す安青錦は４勝目 カド番の琴桜は２敗目 全勝は若ノ勝、獅司の２人に スポーツ報知 2026/7/16 17:57",
+   "u": "https://news.yahoo.co.jp/articles/d0aa49186ac198e1102d664e7551cf7d6dbf9229"
+  },
+  {
+   "t": "綱とりの大関霧島が初黒星 平戸海に苦杯 三役以上の全勝力士は消滅 若ノ勝と獅司が無傷５連勝 注目対決は大関復帰狙う安青錦がカド番琴桜破り１敗守る デイリースポーツ 2026/7/16 17:55",
+   "u": "https://news.yahoo.co.jp/articles/b4e3167c90c57a77c5038aadcc208e0e80a5dade"
+  },
+  {
+   "t": "豊昇龍が４勝目 豪ノ山に勝利 スポーツ報知 2026/7/16 17:53",
+   "u": "https://news.yahoo.co.jp/articles/00c87c2909145ef3a4e1ca475f538cbdc674c81d"
+  },
+  {
    "t": "大の里が２勝目 美ノ海に勝つ 前日は物言いの末、敗戦 スポーツ報知 2026/7/16 17:45",
    "u": "https://news.yahoo.co.jp/articles/5d0268c7f9ff9b633f250ef18829ad3fc51177ee"
   },
   {
    "t": "大関復帰を目指す安青錦が４勝目 カド番の琴桜から勝利 スポーツ報知 2026/7/16 17:42",
    "u": "https://news.yahoo.co.jp/articles/6ad71e6cf4df0292dee5d5ada2916a743e561baa"
-  },
-  {
-   "t": "カド番大関・琴桜、大関復帰目指す安青錦との“仁義なき戦い”に敗れ2敗目、無言で眉間にしわ スポニチアネックス 2026/7/16 17:41",
-   "u": "https://news.yahoo.co.jp/articles/f4c16e5f55e1685a7caba7929f99eeee58892d7a"
-  },
-  {
-   "t": "カド番の琴桜が２敗目 大関復帰を目指す安青錦に敗れる スポーツ報知 2026/7/16 17:40",
-   "u": "https://news.yahoo.co.jp/articles/eee34bc6764923cdbd1999ef975607c32a22972d"
-  },
-  {
-   "t": "霧島 綱取りへ痛恨の初黒星 平戸海に不覚…昇進にはハイレベルな優勝が条件 スポーツ報知 2026/7/16 17:39",
-   "u": "https://news.yahoo.co.jp/articles/8988d6f0e2f4d36f4577ffdde549bb855b1f2344"
   }
  ],
  "awards": null,
@@ -881,8 +881,8 @@
    {
     "e": "豊昇龍",
     "w": "豪ノ山",
-    "k": null,
-    "win": null,
+    "k": "とったり",
+    "win": "e",
     "fusen": false
    },
    {
