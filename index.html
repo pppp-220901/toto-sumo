@@ -233,6 +233,42 @@ details.acc > .acc-body { padding-top: 10px; }
 .muted { color: #8a7a60; font-size: 12px; }
 .center { text-align: center; }
 hr.wave { border: none; border-top: 2px dashed #d8cdb4; margin: 14px 0; }
+
+/* ---------- アクセシビリティ配慮モード切替ボタン ---------- */
+.a11y-toggle-btn {
+  position: absolute; top: 6px; right: 8px; z-index: 60;
+  background: rgba(255,255,255,.15); color: var(--washi);
+  border: 1px solid var(--gold-l); border-radius: 6px;
+  font-size: 13px; font-weight: bold; padding: 3px 9px; line-height: 1.4;
+}
+body.a11y-mode .a11y-toggle-btn { background: var(--gold-l); color: var(--maroon-d); border-color: var(--maroon-d); }
+
+/* ---------- アクセシビリティ配慮モード ----------
+   フィードバック: (1)明朝体が読みにくい (2)文字に色がついていて読みにくい
+   (3)四股名より小さい文字が読めない、への対応。
+   意味を持つ配色（的中/不的中の色分け、ヘッダーの白文字、ボタンの配色）は
+   コントラストを保つためあえて残し、装飾的な淡色テキストだけ濃色に統一する。 */
+body.a11y-mode {
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", "Meiryo", "Noto Sans JP", sans-serif;
+}
+body.a11y-mode button, body.a11y-mode input, body.a11y-mode select {
+  font-family: inherit;
+}
+/* 淡色・装飾的なテキストを読みやすい濃色へ統一 */
+body.a11y-mode :is(
+  .muted, .card .note, .f-rank, .f-record, .onb-sub, .toast small,
+  .locked-box .seal, .hdr-name .title-part, .hdr-basho, .progress-label,
+  .hdr-rank, .result-line .km
+) { color: var(--ink) !important; }
+/* 四股名(16px)を下限に、静的CSSで指定されている小さい文字を引き上げる */
+body.a11y-mode :is(
+  input, select, .hdr-name .title-part, .hdr-basho, .hdr-points small, .hdr-rank,
+  .progress-label, nav button, .section-title, .kensho-banner, .f-side, .f-rank,
+  .f-odds, .f-record, .f-tag, .vs, .bet-row label, .bet-status, .btn, .btn-sm,
+  .bonus-btn, .card .note, .form-row label, .locked-box, .locked-box .seal,
+  table.banzuke, table.banzuke th, .rank-chip, .stats-grid, .result-line .km,
+  .onb-sub, .toast small, details.acc > summary .acc-arrow, .muted
+) { font-size: 16px !important; }
 </style>
 </head>
 <body>
@@ -2044,8 +2080,37 @@ const UI = { tab: "torikumi", openBet: null, onb: { ichimon: null } };
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
+// ---------------- アクセシビリティ配慮モード ----------------
+// 明朝体・淡色テキスト・小さい文字が読みにくいというテストユーザーからの
+// フィードバックへの対応。端末ごとのUI設定なので、Gには入れずlocalStorageのみで管理する。
+function toggleA11yMode() {
+  const on = document.body.classList.toggle("a11y-mode");
+  localStorage.setItem("a11yMode", on ? "1" : "0");
+  showToast(on ? "🔤 見やすさ優先モード ON" : "🔤 見やすさ優先モード OFF", on ? "ゴシック体・大きめ文字に切り替えました" : "デフォルトの表示に戻しました");
+  applyA11yFontFix();
+}
+// 静的CSSでは追えない、その都度JSで生成される差し込み文字(style="font-size:11px"等)を
+// 四股名と同じ16px以上まで底上げする。MutationObserverでDOMの変化を監視し、
+// 個々のrenderXxx()を1つずつ手直しせずに漏れなく対応する。
+function applyA11yFontFix() {
+  if (!document.body.classList.contains("a11y-mode")) return;
+  document.querySelectorAll('#app [style*="font-size"], #modal-area [style*="font-size"], #toast-area [style*="font-size"]').forEach(el => {
+    const cur = parseFloat(getComputedStyle(el).fontSize);
+    if (cur && cur < 16) el.style.setProperty("font-size", "16px", "important");
+  });
+}
+let a11yObserverStarted = false;
+function startA11yObserver() {
+  if (a11yObserverStarted) return;
+  a11yObserverStarted = true;
+  new MutationObserver(() => applyA11yFontFix())
+    .observe(document.body, { childList: true, subtree: true });
+}
+
 // ---------------- 起動 ----------------
 async function init() {
+  if (localStorage.getItem("a11yMode") === "1") document.body.classList.add("a11y-mode");
+  startA11yObserver();
   const hasGame = load();
   await loadRealData();
   applyRealBanzuke();
@@ -2092,6 +2157,7 @@ function renderHeader() {
   const bashoName = info.current ? info.current.name : (info.next ? info.next.name + "待ち" : "");
   const online = SB ? "🟢" : "⚪";
   $("#header").innerHTML = `
+    <button class="a11y-toggle-btn" onclick="toggleA11yMode()" title="見やすさ切替（明朝体をやめ、文字色を抑え、文字サイズを大きくします）">Aa</button>
     <div class="hdr-top">
       <div class="hdr-name"><span class="title-part">${esc(currentTitleName())}</span> ${esc(G.profile.shikona)}</div>
       <div class="hdr-basho">${online} ${esc(bashoName)}・${dayLabel}</div>
