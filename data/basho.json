@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-16T09:10:20.375Z",
+ "updatedAt": "2026-07-16T09:20:32.620Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -232,6 +232,11 @@
    "name": "竜電",
    "rank": "J3",
    "side": "E"
+  },
+  {
+   "name": "出羽ノ龍",
+   "rank": "J3",
+   "side": "W"
   }
  ],
  "kyujoLog": {
@@ -1023,6 +1028,155 @@
     "w": "大青山",
     "k": "寄り倒し",
     "win": "w",
+    "fusen": false
+   }
+  ],
+  "6": [
+   {
+    "e": "平戸海",
+    "w": "大の里",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "豊昇龍",
+    "w": "伯乃富士",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "豪ノ山",
+    "w": "琴櫻",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "霧島",
+    "w": "義ノ富士",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "王鵬",
+    "w": "安青錦",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "熱海富士",
+    "w": "藤ノ川",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "隆の勝",
+    "w": "琴勝峰",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "大栄翔",
+    "w": "美ノ海",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "藤青雲",
+    "w": "一山本",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "高安",
+    "w": "欧勝馬",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "宇良",
+    "w": "琴栄峰",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "正代",
+    "w": "若元春",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "千代翔馬",
+    "w": "狼雅",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "御嶽海",
+    "w": "翔猿",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "藤凌駕",
+    "w": "若ノ勝",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "朝乃山",
+    "w": "阿炎",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "朝白龍",
+    "w": "尊富士",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "錦富士",
+    "w": "大青山",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "朝紅龍",
+    "w": "獅司",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "金峰山",
+    "w": "出羽ノ龍",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "阿武剋",
+    "w": "一意",
+    "k": null,
+    "win": null,
     "fusen": false
    }
   ]
