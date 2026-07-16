@@ -254,11 +254,11 @@ body.a11y-mode {
 body.a11y-mode button, body.a11y-mode input, body.a11y-mode select {
   font-family: inherit;
 }
-/* 淡色・装飾的なテキストを読みやすい濃色へ統一 */
+/* 淡色・装飾的なテキストを読みやすい濃色へ統一（ヘッダー内は元々ダーク背景に
+   明るい文字色でコントラストを確保しているため、ここでは対象から除外する） */
 body.a11y-mode :is(
   .muted, .card .note, .f-rank, .f-record, .onb-sub, .toast small,
-  .locked-box .seal, .hdr-name .title-part, .hdr-basho, .progress-label,
-  .hdr-rank, .result-line .km
+  .locked-box .seal, .result-line .km
 ) { color: var(--ink) !important; }
 /* 四股名(16px)を下限に、静的CSSで指定されている小さい文字を引き上げる */
 body.a11y-mode :is(
