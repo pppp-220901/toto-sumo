@@ -28,9 +28,9 @@ header {
   border-bottom: 3px solid var(--gold); box-shadow: 0 2px 8px rgba(0,0,0,.3);
 }
 .hdr-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.hdr-name { font-weight: bold; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+.hdr-name { font-weight: bold; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
 .hdr-name .title-part { color: var(--gold-l); font-size: 13px; }
-.hdr-basho { font-size: 12px; color: var(--gold-l); white-space: nowrap; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; }
+.hdr-basho { font-size: 12px; color: var(--gold-l); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
 .hdr-mid { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 .hdr-points { font-size: 22px; font-weight: bold; color: var(--gold-l); letter-spacing: 1px; }
 .hdr-points small { font-size: 12px; color: var(--washi); }
@@ -2161,10 +2161,10 @@ function renderHeader() {
   const online = SB ? "🟢" : "⚪";
   $("#header").innerHTML = `
     <div class="hdr-top">
-      <div class="hdr-name"><span class="title-part">${esc(currentTitleName())}</span> ${esc(G.profile.shikona)}</div>
+      <div class="hdr-basho">${online} ${esc(bashoName)}・${dayLabel}</div>
       <button class="a11y-toggle-btn" onclick="toggleA11yMode()" title="見やすさ切替（明朝体をやめ、文字色を抑え、文字サイズを大きくします）">Aa</button>
     </div>
-    <div class="hdr-basho">${online} ${esc(bashoName)}・${dayLabel}</div>
+    <div class="hdr-name"><span class="title-part">${esc(currentTitleName())}</span> ${esc(G.profile.shikona)}</div>
     <div class="hdr-mid">
       <div class="hdr-points">${fmt(G.points)} <small>合</small></div>
       <div class="hdr-rank">番付：<b>${BANZUKE_NAMES[G.banzukeLevel]}</b><br><span style="font-size:10px;color:#cdb9a5">${G.bashoCount}場所目</span></div>
