@@ -3045,6 +3045,7 @@ function renderYosou() {
           ボーナス <b style="color:var(--maroon)">+${fmt(r.bonus)}合</b>（獲得済み）
         </div>
         ${rows}
+        <button class="btn btn-ghost btn-wide" style="margin-top:8px" onclick="onYosouImage()">📷 予想を画像で保存</button>
       </div>`;
   } else if (!sched.sougouDone) {
     body = `<div class="card"><div class="note">🔒 受付は<b>総合発表（${sched.sougouMs ? fmtDateJa(sched.sougouMs) : "千秋楽3日後の水曜"} 10:00）</b>の後に始まります。今しばらくお待ちください。</div></div>`;
@@ -3059,6 +3060,7 @@ function renderYosou() {
       <div class="card">
         <div class="locked-box"><span class="seal">確定</span> 予想は締め切りました。<b>${sched.announceMs ? fmtDateJa(sched.announceMs) : "月曜"}の番付発表</b>後に答え合わせ！</div>
         ${rows}
+        <button class="btn btn-ghost btn-wide" style="margin-top:8px" onclick="onYosouImage()">📷 予想を画像で保存</button>
       </div>`;
   } else {
     body = `<div class="card"><div class="note">今回の番付予想は受付を終了しました。${sched.next ? `次回は${esc(sched.next.name)}後の総合発表から受付開始です。` : ""}</div></div>`;
@@ -3114,7 +3116,8 @@ function yosouFormHTML(sched) {
       <table class="banzuke"><tr><th style="width:34px">No.</th><th style="width:110px">番付</th><th>予想する力士</th></tr>${rows}</table>
       ${locked
         ? `<div class="locked-box" style="margin-top:10px"><span class="seal">確定</span> 予想を確定しました（${filled}/16枠 入力済み）。締切までは修正できます。</div>
-           <button class="btn btn-ghost btn-wide" style="margin-top:8px" onclick="onYosouEdit()">✏ 編集に戻る</button>`
+           <button class="btn btn-ghost btn-wide" style="margin-top:8px" onclick="onYosouEdit()">✏ 編集に戻る</button>
+           <button class="btn btn-ghost btn-wide" style="margin-top:6px" onclick="onYosouImage()">📷 予想を画像で保存</button>`
         : `<div class="center" style="margin:8px 0 4px"><span class="muted">入力済み ${filled}/16枠</span></div>
            <button class="btn btn-primary btn-wide" onclick="onYosouConfirm()">この内容で確定する</button>`}
     </div>`;
@@ -3157,6 +3160,128 @@ function onYosouEdit() {
   p.confirmed = false;
   save();
   renderYosou();
+}
+
+// ---------------- 番付予想の画像書き出し ----------------
+// 完成した予想を「東｜番付｜西」の番付表風1枚画像にする。
+// iPhone SafariではWeb Share APIの共有シート経由で「写真」に保存できる。
+// 非対応環境では、モーダル表示（長押し保存）とダウンロードリンクにフォールバック。
+function yosouImageRows(p) {
+  const rows = [];
+  YOSOU_SANYAKU.forEach(t => {
+    const c = p.counts[t.key] || 2;
+    for (let base = 0; base < c; base += 2) {
+      rows.push({
+        label: t.label + (base ? "②" : ""),
+        e: p.slots[`${t.key}-slot${base}`] || "",
+        w: (base + 1 < c) ? (p.slots[`${t.key}-slot${base + 1}`] || "") : null, // null=枠なし
+        tierFirst: base === 0
+      });
+    }
+  });
+  const byN = {};
+  yosouAllSlots(p.counts).forEach(s => {
+    const m = s.key.match(/^maegashira(\d+)-(東|西)$/);
+    if (m) (byN[m[1]] = byN[m[1]] || {})[m[2]] = p.slots[s.key] || "";
+  });
+  Object.keys(byN).map(Number).sort((a, b) => a - b).forEach((n, i) => {
+    rows.push({
+      label: maegashiraLabelOf(n),
+      e: byN[n]["東"] !== undefined ? byN[n]["東"] : null,
+      w: byN[n]["西"] !== undefined ? byN[n]["西"] : null,
+      tierFirst: i === 0
+    });
+  });
+  return rows;
+}
+function drawYosouImage(p) {
+  const rows = yosouImageRows(p);
+  const W = 700, rowH = 54, headH = 140, footH = 90;
+  const H = headH + rows.length * rowH + footH;
+  const cv = document.createElement("canvas");
+  const scale = 2; // Retina対応
+  cv.width = W * scale; cv.height = H * scale;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return null;
+  ctx.scale(scale, scale);
+  const MINCHO = "'Hiragino Mincho ProN','Yu Mincho',serif";
+  // 和紙背景
+  ctx.fillStyle = "#faf3e6"; ctx.fillRect(0, 0, W, H);
+  // ヘッダー帯
+  ctx.fillStyle = "#6b1e28"; ctx.fillRect(0, 0, W, 88);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#e8cf8f";
+  ctx.font = `bold 28px ${MINCHO}`;
+  ctx.fillText(`${bashoNameFromKey(p.forBashoKey)} 新番付予想`, W / 2, 36);
+  ctx.font = `15px ${MINCHO}`;
+  ctx.fillText(`予想者：${currentTitleName()} ${G.profile.shikona}`, W / 2, 66);
+  // 列見出し（東｜番付｜西）
+  const cCol = 170;                      // 中央列の幅
+  const eCx = (W - cCol) / 4;            // 東列の中心
+  const wCx = W - (W - cCol) / 4;        // 西列の中心
+  ctx.fillStyle = "#8a5a20";
+  ctx.font = `bold 18px ${MINCHO}`;
+  ctx.fillText("東", eCx, headH - 26);
+  ctx.fillText("番　付", W / 2, headH - 26);
+  ctx.fillText("西", wCx, headH - 26);
+  ctx.strokeStyle = "#c9a24b"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(30, headH - 8); ctx.lineTo(W - 30, headH - 8); ctx.stroke();
+  // 行
+  rows.forEach((r, i) => {
+    const y = headH + i * rowH + rowH / 2;
+    if (i > 0) {
+      ctx.strokeStyle = r.tierFirst ? "#c9a24b" : "#e2d3b4";
+      ctx.lineWidth = r.tierFirst ? 2 : 1;
+      ctx.beginPath(); ctx.moveTo(30, y - rowH / 2); ctx.lineTo(W - 30, y - rowH / 2); ctx.stroke();
+    }
+    ctx.fillStyle = "#6b1e28";
+    ctx.font = `bold 17px ${MINCHO}`;
+    ctx.fillText(r.label, W / 2, y);
+    const name = v => v === null ? "" : (v || "―");
+    ctx.font = `bold 22px ${MINCHO}`;
+    ctx.fillStyle = "#3a2c22";
+    if (r.e !== null) ctx.fillText(name(r.e), eCx, y);
+    if (r.w !== null) ctx.fillText(name(r.w), wCx, y);
+  });
+  // フッター
+  ctx.strokeStyle = "#c9a24b"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(30, H - footH + 14); ctx.lineTo(W - 30, H - footH + 14); ctx.stroke();
+  ctx.fillStyle = "#6b1e28";
+  ctx.font = `bold 20px ${MINCHO}`;
+  ctx.fillText("#トト相撲", W / 2, H - footH / 2 + 6);
+  return cv;
+}
+function dataUrlToFile(dataUrl, name) {
+  const b64 = dataUrl.split(",")[1];
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], name, { type: "image/png" });
+}
+async function onYosouImage() {
+  const p = G.banzukePrediction;
+  if (!p) return;
+  const cv = drawYosouImage(p);
+  if (!cv) { showToast("⚠ 画像生成に失敗", "この環境ではCanvasが使えないようです"); return; }
+  // ユーザー操作の流れを保つため同期APIで生成してから共有する（iOSのシェア制限対策）
+  const dataUrl = cv.toDataURL("image/png");
+  const file = dataUrlToFile(dataUrl, `banzuke_yosou_${p.forBashoKey}.png`);
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "番付予想 #トト相撲" });
+      return; // 共有シートから「画像を保存」で写真アプリへ
+    } catch (e) {
+      if (e && e.name === "AbortError") return; // ユーザーキャンセル
+      // それ以外の失敗はフォールバックへ
+    }
+  }
+  openModal(`
+    <h2 class="banner">📷 番付予想 画像</h2>
+    <div class="note">iPhoneでは画像を<b>長押し</b> →「"写真"に追加」で保存できます。パソコンではダウンロードボタンをどうぞ。</div>
+    <img src="${dataUrl}" alt="番付予想" style="width:100%;border:1px solid #d8cdb4;border-radius:8px;margin:8px 0">
+    <a class="btn btn-ghost btn-wide" href="${dataUrl}" download="banzuke_yosou_${p.forBashoKey}.png" style="text-decoration:none">💾 ダウンロード</a>
+    <button class="btn btn-gold btn-wide" style="margin-top:8px" onclick="closeModal()">閉じる</button>
+  `);
 }
 
 // ---------------- 場所予想タブ ----------------
