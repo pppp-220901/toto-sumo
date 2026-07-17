@@ -36,6 +36,19 @@ function currentBasho() {
   }
   return null;
 }
+// 次の本場所（番付予想モードの答え合わせ用）
+function nextBasho() {
+  const today = jstToday();
+  const y0 = new Date(today).getUTCFullYear();
+  const cands = [];
+  for (const y of [y0, y0 + 1]) {
+    for (const m of [1, 3, 5, 7, 9, 11]) {
+      cands.push({ y, m, start: Date.UTC(y, m - 1, secondSunday(y, m)), key: `${y}-${String(m).padStart(2, "0")}` });
+    }
+  }
+  cands.sort((a, b) => a.start - b.start);
+  return cands.find(c => c.start > today) || null;
+}
 
 // ---------- 番付文字列の正規化 ----------
 function normRank(s) {
@@ -189,6 +202,85 @@ function parseAwards(html) {
   return result.yusho ? result : null; // 優勝力士が取れなければ未発表とみなす
 }
 
+// ---------- 番付表（星取・番付表）のパース ----------
+// https://sports.yahoo.co.jp/sumo/basho/{yyyymm} の東・番付・西 3列テーブルを対象。
+// 番付発表後〜初日前の「次の場所」ページから新番付を取り出す（番付予想モードの正解データ）。
+// 中央セルの番付ラベルには東西プレフィックスが付かない想定
+// （「東横綱」のような表記は表彰力士テーブル側なので対象外にできる）。
+const BZ_RANK_RE = /^(横綱|大関|関脇|小結|前頭(筆頭|\d+枚目))$/;
+const NAME_RE = /^[぀-ヿ㐀-鿿々]+$/;
+function parseBanzukeTable(html) {
+  const out = [];
+  let idx = 0;
+  while (out.length < 60) {
+    const t0 = html.indexOf("<table", idx);
+    if (t0 < 0) break;
+    const t1 = html.indexOf("</table>", t0);
+    idx = t1 + 8;
+    const rows = html.slice(t0, t1).split(/<tr[\s>]/).slice(1);
+    for (const row of rows) {
+      const tokens = row
+        .replace(/<[^>]*>/g, "\n")
+        .replace(/&nbsp;/g, " ")
+        .split("\n").map(s => s.trim()).filter(Boolean)
+        .filter(s => !/^https?:/.test(s));
+      const ri = tokens.findIndex(t => BZ_RANK_RE.test(t));
+      if (ri < 0) continue;
+      const rank = normRank(tokens[ri]);
+      if (!rank || rank[0] === "J") continue;
+      const isName = t => NAME_RE.test(t) && !BZ_RANK_RE.test(t) && !REC_RE.test(t) &&
+        !["休", "優勝", "幕内", "十両", "番付", "東", "西"].includes(t);
+      const eName = tokens.slice(0, ri).filter(isName)[0] || null;   // 左列=東
+      const wName = tokens.slice(ri + 1).filter(isName)[0] || null;  // 右列=西
+      if (eName) out.push({ rank, side: "東", name: eName });
+      if (wName) out.push({ rank, side: "西", name: wName });
+    }
+  }
+  // 同名の重複を除去（幕内タブと同内容の別テーブルが並ぶ場合の保険）
+  const seen = new Set();
+  return out.filter(x => {
+    const k = x.name;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+// ---------- オフシーズン: 新番付の取得（番付発表の月曜〜初日前） ----------
+async function offseasonBanzukeFetch() {
+  const today = jstToday();
+  const next = nextBasho();
+  if (!next) { console.log("次の場所が見つかりません"); return; }
+  const announce = next.start - 13 * 86400e3; // 番付発表 = 初日13日前の月曜
+  if (today < announce) { console.log("場所期間外・番付発表前のため何もしません"); return; }
+  if (!existsSync(OUT)) { console.log("既存データファイルがないためスキップ"); return; }
+  let prev;
+  try { prev = JSON.parse(readFileSync(OUT, "utf8")); } catch (e) { console.log("既存データ読込失敗"); return; }
+  if (prev.nextBanzuke && prev.nextBanzuke.bashoKey === next.key &&
+    Array.isArray(prev.nextBanzuke.list) && prev.nextBanzuke.list.length >= 16) {
+    console.log("新番付は取得済み。何もしません。");
+    return;
+  }
+  const yyyymm = next.key.replace("-", "");
+  let html;
+  try {
+    const res = await fetch(`https://sports.yahoo.co.jp/sumo/basho/${yyyymm}`, { headers: { "User-Agent": UA } });
+    if (!res.ok) { console.log(`新番付ページ: HTTP ${res.status} スキップ（翌回リトライ）`); return; }
+    html = await res.text();
+  } catch (e) {
+    console.log("新番付ページ取得失敗:", e.message);
+    return;
+  }
+  const list = parseBanzukeTable(html);
+  if (list.length < 16) {
+    console.log(`新番付: 抽出できたのは${list.length}名のみ（未掲載か構造変更）。翌回リトライします。`);
+    return;
+  }
+  prev.nextBanzuke = { bashoKey: next.key, fetchedAt: new Date().toISOString(), list };
+  writeFileSync(OUT, JSON.stringify(prev, null, 1));
+  console.log(`新番付を書き出し: ${next.key} / ${list.length}名（先頭: ${list.slice(0, 4).map(x => x.name).join("、")}）`);
+}
+
 // ---------- 勝者判定（マーク優先、なければ星取差分） ----------
 // recMap: name -> {w, l} 直近の既知星取。片方が十両から上がってきた場合でも
 // 幕内側の勝敗の増分だけで判定できるよう、勝ち数と負け数の両方を見る。
@@ -222,7 +314,8 @@ function decideWinner(b, recMap) {
 // ---------- メイン ----------
 const basho = currentBasho();
 if (!basho) {
-  console.log("場所期間外のため何もしません");
+  // 場所期間外: 番付発表後なら「次の場所の新番付」だけ取得する（番付予想モード用）
+  await offseasonBanzukeFetch();
   process.exit(0);
 }
 console.log(`対象: ${basho.key} / ${basho.day}日目まで（+翌日の取組）`);
