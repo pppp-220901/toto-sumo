@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-17T07:56:20.614Z",
+ "updatedAt": "2026-07-17T08:06:34.410Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -268,6 +268,10 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "若ノ勝が右足を負傷か 土俵上で四つんばい 車いすで退場 前日まで５連勝 スポーツ報知 2026/7/17 16:55",
+   "u": "https://news.yahoo.co.jp/articles/07e40a86d160088f73e65874cb09e3b84303a529"
+  },
+  {
    "t": "勝負に徹して輝が炎鵬に勝利 親友対決も「それは関係ない。勝負なんで」 日刊スポーツ 2026/7/17 16:51",
    "u": "https://news.yahoo.co.jp/articles/f7f6de8772032548f501c6c919087c962e648bac"
   },
@@ -282,10 +286,6 @@
   {
    "t": "友風が４敗目 得意のはたき込みが不発で、連日の「言うことなしです」 スポーツ報知 2026/7/17 16:26",
    "u": "https://news.yahoo.co.jp/articles/945a1f2f8a0bf9e291b7492cbf4c4cf1b5625dc9"
-  },
-  {
-   "t": "獅司が無傷の6連勝 朝紅龍を力強く押し出してトップをキープ スポニチアネックス 2026/7/17 16:23",
-   "u": "https://news.yahoo.co.jp/articles/2aec41002d1a8a84dd0321085fab8b94b2a3ed9e"
   }
  ],
  "awards": null,
@@ -1109,8 +1109,8 @@
    {
     "e": "宇良",
     "w": "琴栄峰",
-    "k": null,
-    "win": null,
+    "k": "小手投げ",
+    "win": "w",
     "fusen": false
    },
    {
