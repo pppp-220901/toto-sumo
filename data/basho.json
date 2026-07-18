@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-18T08:08:14.364Z",
+ "updatedAt": "2026-07-18T08:18:29.732Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -1241,22 +1241,22 @@
    {
     "e": "豪ノ山",
     "w": "王鵬",
-    "k": null,
-    "win": null,
+    "k": "寄り切り",
+    "win": "e",
     "fusen": false
    },
    {
     "e": "一山本",
     "w": "美ノ海",
-    "k": null,
-    "win": null,
+    "k": "押し倒し",
+    "win": "e",
     "fusen": false
    },
    {
     "e": "大栄翔",
     "w": "欧勝馬",
-    "k": null,
-    "win": null,
+    "k": "押し出し",
+    "win": "w",
     "fusen": false
    },
    {
