@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-18T09:09:47.867Z",
+ "updatedAt": "2026-07-18T09:20:04.188Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -279,6 +279,10 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "平幕の獅司に土、無敗が消える…大関琴桜は関脇熱海富士に寄り切られ黒星先行 読売新聞オンライン 2026/7/18 18:08",
+   "u": "https://news.yahoo.co.jp/articles/18e3e38a22689031aa87ed56c53d971f6e4671ff"
+  },
+  {
    "t": "両横綱は勝つ 綱取りの霧島、大関復帰目指す安青錦はともに６勝目 カド番の琴桜は４敗目 勝ちっ放しは消え、１敗は霧島ら７人 スポーツ報知 2026/7/18 18:05",
    "u": "https://news.yahoo.co.jp/articles/4cdf0ce27bd2745bb248115ef09cb96a9c3ce1ee"
   },
@@ -287,16 +291,12 @@
    "u": "https://news.yahoo.co.jp/articles/f4efb22040c71041566e0e5c7f93c07ec882a5c5"
   },
   {
-   "t": "豊昇龍が５勝目 平戸海に勝ち、連敗を回避 横綱初優勝にはもう負けられない スポーツ報知 2026/7/18 17:55",
+   "t": "豊昇龍が５勝目 平戸海に勝ち連敗回避 横綱初優勝にはもう負けられない スポーツ報知 2026/7/18 17:55",
    "u": "https://news.yahoo.co.jp/articles/39cc2a1cec2a368ec8c565eafd2f511b177f4c9c"
   },
   {
    "t": "大の里 “横綱キラー”伯乃富士に完勝！3連勝で白星先行 霧島、安青錦ら1敗7人がV争いトップ スポニチアネックス 2026/7/18 17:54",
    "u": "https://news.yahoo.co.jp/articles/ee54f48dd6060fe7da68d6537412522d4e009e74"
-  },
-  {
-   "t": "大の里が３連勝で４勝目 今場所初めて白星先行 過去２勝３敗と分の悪い伯乃富士を下す スポーツ報知 2026/7/18 17:48",
-   "u": "https://news.yahoo.co.jp/articles/8f826abff49290804c0a2d00f285a9777a1e0c2f"
   }
  ],
  "awards": null,
@@ -1341,6 +1341,148 @@
     "w": "朝紅龍",
     "k": "押し出し",
     "win": "w",
+    "fusen": false
+   }
+  ],
+  "8": [
+   {
+    "e": "王鵬",
+    "w": "大の里",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "豊昇龍",
+    "w": "大栄翔",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "平戸海",
+    "w": "琴櫻",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "霧島",
+    "w": "熱海富士",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "伯乃富士",
+    "w": "琴勝峰",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "隆の勝",
+    "w": "安青錦",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "義ノ富士",
+    "w": "藤ノ川",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "豪ノ山",
+    "w": "美ノ海",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "琴栄峰",
+    "w": "一山本",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "若元春",
+    "w": "欧勝馬",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "宇良",
+    "w": "高安",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "狼雅",
+    "w": "藤青雲",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "正代",
+    "w": "藤凌駕",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "朝白龍",
+    "w": "翔猿",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "阿炎",
+    "w": "千代翔馬",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "朝乃山",
+    "w": "阿武剋",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "尊富士",
+    "w": "御嶽海",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "錦富士",
+    "w": "一意",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "金峰山",
+    "w": "獅司",
+    "k": null,
+    "win": null,
+    "fusen": false
+   },
+   {
+    "e": "大青山",
+    "w": "朝紅龍",
+    "k": null,
+    "win": null,
     "fusen": false
    }
   ]
