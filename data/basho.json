@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-18T08:39:00.933Z",
+ "updatedAt": "2026-07-18T08:49:16.439Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -279,6 +279,14 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "綱取りの霧島が１敗堅守 琴勝峰に勝って６勝目 スポーツ報知 2026/7/18 17:40",
+   "u": "https://news.yahoo.co.jp/articles/2da8cf89e05a31abf616bd08238e3d8601dc6472"
+  },
+  {
+   "t": "カド番の琴桜が３連敗で４敗目 熱海富士に敗れ黒星先行 スポーツ報知 2026/7/18 17:39",
+   "u": "https://news.yahoo.co.jp/articles/35283bfac4278c0343f0f3d0f8d6dceb3bdcee14"
+  },
+  {
    "t": "安青錦が６勝目 立ち合い変化の藤ノ川に、落ち着いて対応し、白星 スポーツ報知 2026/7/18 17:32",
    "u": "https://news.yahoo.co.jp/articles/a2c47de1a00815ccb81e25ac767f754704a2b67f"
   },
@@ -289,14 +297,6 @@
   {
    "t": "幕下・生田目がストレート勝ち越し ５番相撲で２５連勝中の旭富士と対戦の可能性「燃えますね。話題をかっさらいたい」 スポーツ報知 2026/7/18 17:19",
    "u": "https://news.yahoo.co.jp/articles/074ef6f2150970eeeacc9300b628e73846f8eb18"
-  },
-  {
-   "t": "友風、３日連続で得意のはたき込みが空回り「もっと前に出れば良かった」 スポーツ報知 2026/7/18 17:19",
-   "u": "https://news.yahoo.co.jp/articles/c3aae98dfc173d7166d2ab4890ba698fa427c981"
-  },
-  {
-   "t": "獅司が初黒星 錦富士に敗れ、７日目で幕内全勝消える スポーツ報知 2026/7/18 16:58",
-   "u": "https://news.yahoo.co.jp/articles/d1f943b630d97782d054b9724b0dfee0854a25bf"
   }
  ],
  "awards": null,
@@ -1213,8 +1213,8 @@
    {
     "e": "霧島",
     "w": "琴勝峰",
-    "k": null,
-    "win": null,
+    "k": "上手投げ",
+    "win": "e",
     "fusen": false
    },
    {
