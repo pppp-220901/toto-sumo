@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-18T07:16:56.151Z",
+ "updatedAt": "2026-07-18T07:27:11.680Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -279,6 +279,10 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "“イケメン幕下”大森 勝ち越し王手の３勝目 巨漢に上手出し投げで「自分の形にすることが出来た」 スポーツ報知 2026/7/18 16:24",
+   "u": "https://news.yahoo.co.jp/articles/4174124c416f3e01686310de6f6b4fc441e6f4cf"
+  },
+  {
    "t": "「え、軍配壊れた？」行司“転倒”のアクシデント 館内に響いた大きな音にざわめき「割れる音が」「大丈夫？」心配、安堵の声も ABEMA TIMES 2026/7/18 16:09",
    "u": "https://news.yahoo.co.jp/articles/55fc1e6ccd124b4a79dd265eb80f3fb87f39097b"
   },
@@ -293,10 +297,6 @@
   {
    "t": "「どうですかね？」イケメン力士大森、初のびんづけ油でオールバック 相撲は完勝で勝ち越し王手 日刊スポーツ 2026/7/18 14:54",
    "u": "https://news.yahoo.co.jp/articles/f75c112b068e4de125c96ac00bd74d4bd38a5446"
-  },
-  {
-   "t": "“史上最強の新弟子”旭富士が無傷２５連勝で歴代単独３位に！１９歳ホープに立ち会い変化決める【大相撲】 デイリースポーツ 2026/7/18 14:33",
-   "u": "https://news.yahoo.co.jp/articles/ce5b2c944b8078f2c260802ea91b2aba5d27eaed"
   }
  ],
  "awards": null,
@@ -1318,15 +1318,15 @@
    {
     "e": "一意",
     "w": "阿炎",
-    "k": null,
-    "win": null,
+    "k": "突き出し",
+    "win": "w",
     "fusen": false
    },
    {
     "e": "錦富士",
     "w": "獅司",
-    "k": null,
-    "win": null,
+    "k": "送り出し",
+    "win": "e",
     "fusen": false
    },
    {
