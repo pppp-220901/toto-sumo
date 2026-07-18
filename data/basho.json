@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-18T08:59:32.502Z",
+ "updatedAt": "2026-07-18T09:09:47.867Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -279,6 +279,14 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "両横綱は勝つ 綱取りの霧島、大関復帰目指す安青錦はともに６勝目 カド番の琴桜は４敗目 勝ちっ放しは消え、１敗は霧島ら７人 スポーツ報知 2026/7/18 18:05",
+   "u": "https://news.yahoo.co.jp/articles/4cdf0ce27bd2745bb248115ef09cb96a9c3ce1ee"
+  },
+  {
+   "t": "横綱大の里が伯乃富士を圧倒、４勝３敗と白星先行 横綱豊昇龍は豪快なすくい投げで平戸海を下す デイリースポーツ 2026/7/18 18:01",
+   "u": "https://news.yahoo.co.jp/articles/f4efb22040c71041566e0e5c7f93c07ec882a5c5"
+  },
+  {
    "t": "豊昇龍が５勝目 平戸海に勝ち、連敗を回避 横綱初優勝にはもう負けられない スポーツ報知 2026/7/18 17:55",
    "u": "https://news.yahoo.co.jp/articles/39cc2a1cec2a368ec8c565eafd2f511b177f4c9c"
   },
@@ -289,14 +297,6 @@
   {
    "t": "大の里が３連勝で４勝目 今場所初めて白星先行 過去２勝３敗と分の悪い伯乃富士を下す スポーツ報知 2026/7/18 17:48",
    "u": "https://news.yahoo.co.jp/articles/8f826abff49290804c0a2d00f285a9777a1e0c2f"
-  },
-  {
-   "t": "綱取りの霧島が１敗堅守 琴勝峰に勝って６勝目 スポーツ報知 2026/7/18 17:40",
-   "u": "https://news.yahoo.co.jp/articles/2da8cf89e05a31abf616bd08238e3d8601dc6472"
-  },
-  {
-   "t": "カド番の琴桜が３連敗で４敗目 熱海富士に敗れ黒星先行 スポーツ報知 2026/7/18 17:39",
-   "u": "https://news.yahoo.co.jp/articles/35283bfac4278c0343f0f3d0f8d6dceb3bdcee14"
   }
  ],
  "awards": null,
