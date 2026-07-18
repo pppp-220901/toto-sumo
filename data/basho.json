@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-18T07:37:27.716Z",
+ "updatedAt": "2026-07-18T07:47:43.122Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -1290,15 +1290,15 @@
    {
     "e": "藤凌駕",
     "w": "千代翔馬",
-    "k": null,
-    "win": null,
+    "k": "押し出し",
+    "win": "e",
     "fusen": false
    },
    {
     "e": "朝乃山",
     "w": "御嶽海",
-    "k": null,
-    "win": null,
+    "k": "上手投げ",
+    "win": "e",
     "fusen": false
    },
    {
