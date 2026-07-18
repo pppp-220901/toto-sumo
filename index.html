@@ -2411,7 +2411,8 @@ function renderTorikumi() {
         <div class="day-summary" style="margin-bottom:12px">
           🏁 ${dayKanji(day)} リザルト<br>
           的中 <b style="font-size:22px;color:var(--maroon)">${log.hits}</b><span class="muted"> / ${log.bets} 番</span><br>
-          <span class="${log.net >= 0 ? "net-plus" : "net-minus"}">${log.net >= 0 ? "+" : ""}${fmt(log.net)} 合</span>
+          <span class="${log.net >= 0 ? "net-plus" : "net-minus"}">${log.net >= 0 ? "+" : ""}${fmt(log.net)} 合</span><br>
+          <button class="btn btn-ghost btn-sm" onclick="onDayResultImage(${day})" style="margin-top:8px">📷 画像で保存</button>
         </div>`;
       } else {
         html += `<div class="day-summary" style="margin-bottom:12px">🏁 ${dayKanji(day)} リザルト<br><span class="muted">本日の張りはありませんでした（見の一日）</span></div>`;
@@ -3334,17 +3335,15 @@ function dataUrlToFile(dataUrl, name) {
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
   return new File([arr], name, { type: "image/png" });
 }
-async function onYosouImage() {
-  const p = G.banzukePrediction;
-  if (!p) return;
-  const cv = drawYosouImage(p);
-  if (!cv) { showToast("⚠ 画像生成に失敗", "この環境ではCanvasが使えないようです"); return; }
+// 画像の共有/保存の共通処理: iPhone Safariは共有シート（→「画像を保存」で写真へ）、
+// 非対応環境はモーダル表示（長押し保存）＋ダウンロードリンクにフォールバック
+async function shareOrShowImage(cv, filename, shareTitle) {
   // ユーザー操作の流れを保つため同期APIで生成してから共有する（iOSのシェア制限対策）
   const dataUrl = cv.toDataURL("image/png");
-  const file = dataUrlToFile(dataUrl, `banzuke_yosou_${p.forBashoKey}.png`);
+  const file = dataUrlToFile(dataUrl, filename);
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: "番付予想 #トト相撲" });
+      await navigator.share({ files: [file], title: shareTitle });
       return; // 共有シートから「画像を保存」で写真アプリへ
     } catch (e) {
       if (e && e.name === "AbortError") return; // ユーザーキャンセル
@@ -3352,12 +3351,108 @@ async function onYosouImage() {
     }
   }
   openModal(`
-    <h2 class="banner">📷 番付予想 画像</h2>
+    <h2 class="banner">📷 画像を保存</h2>
     <div class="note">iPhoneでは画像を<b>長押し</b> →「"写真"に追加」で保存できます。パソコンではダウンロードボタンをどうぞ。</div>
-    <img src="${dataUrl}" alt="番付予想" style="width:100%;border:1px solid #d8cdb4;border-radius:8px;margin:8px 0">
-    <a class="btn btn-ghost btn-wide" href="${dataUrl}" download="banzuke_yosou_${p.forBashoKey}.png" style="text-decoration:none">💾 ダウンロード</a>
+    <img src="${dataUrl}" alt="${esc(shareTitle)}" style="width:100%;border:1px solid #d8cdb4;border-radius:8px;margin:8px 0">
+    <a class="btn btn-ghost btn-wide" href="${dataUrl}" download="${filename}" style="text-decoration:none">💾 ダウンロード</a>
     <button class="btn btn-gold btn-wide" style="margin-top:8px" onclick="closeModal()">閉じる</button>
   `);
+}
+async function onYosouImage() {
+  const p = G.banzukePrediction;
+  if (!p) return;
+  const cv = drawYosouImage(p);
+  if (!cv) { showToast("⚠ 画像生成に失敗", "この環境ではCanvasが使えないようです"); return; }
+  await shareOrShowImage(cv, `banzuke_yosou_${p.forBashoKey}.png`, "番付予想 #トト相撲");
+}
+
+// ---------------- 1日のリザルト画像 ----------------
+// その日の収支・的中率と、賭けの内容・結果の箇条書きを1枚のPNGにする
+function dayResultImageLines(day) {
+  const dd = SIM && SIM.days[day];
+  const lines = [];
+  (G.bets || []).filter(b => b.day === day && b.settled).forEach(b => {
+    const bout = dd && dd.torikumi[b.bout];
+    const my = bout ? rk(b.side === "east" ? bout.east : bout.west).name : "?";
+    const opp = bout ? rk(b.side === "east" ? bout.west : bout.east).name : "?";
+    if (b.fusen || b.refundAmount) {
+      lines.push({ mark: "―", color: "#8a7a63", text: `${my}（不戦・返還）${fmt(b.amount + (b.kAmount || 0))}合` });
+      return;
+    }
+    let text = `${my}（対 ${opp}）${fmt(b.amount)}合 ×${b.odds}`;
+    if (b.kimarite && b.kAmount) text += `／手:${b.kimarite}${b.kHit ? "○" : "●"}`;
+    text += ` → ${b.net >= 0 ? "+" : ""}${fmt(b.net)}合`;
+    lines.push({ mark: b.hit ? "○" : "●", color: b.hit ? "#2e7d4f" : "#b23b3b", text });
+  });
+  (G.ewBets || []).filter(b => b.day === day && b.settled).forEach(b => {
+    const side = b.side === "east" ? "東方" : "西方";
+    if (b.tie) {
+      lines.push({ mark: "―", color: "#8a7a63", text: `東西対抗・${side} ${fmt(b.amount)}合（同数・返還）` });
+    } else {
+      lines.push({
+        mark: b.hit ? "○" : "●", color: b.hit ? "#2e7d4f" : "#b23b3b",
+        text: `東西対抗・${side} ${fmt(b.amount)}合${b.hit ? ` ×${b.odds}` : ""} → ${b.net >= 0 ? "+" : ""}${fmt(b.net)}合`
+      });
+    }
+  });
+  return lines;
+}
+function drawDayResultImage(day) {
+  const lines = dayResultImageLines(day);
+  const log = dayResultLive(day);
+  const rate = log.bets ? Math.round(log.hits / log.bets * 100) : 0;
+  const W = 700, headH = 88, statsH = 96, rowH = 32, footH = 80;
+  const H = headH + statsH + lines.length * rowH + footH;
+  const cv = document.createElement("canvas");
+  const scale = 2;
+  cv.width = W * scale; cv.height = H * scale;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return null;
+  ctx.scale(scale, scale);
+  const MINCHO = "'Hiragino Mincho ProN','Yu Mincho',serif";
+  const [y, m] = G.bashoKey ? G.bashoKey.split("-").map(Number) : [0, 0];
+  // 和紙背景・ヘッダー帯
+  ctx.fillStyle = "#faf3e6"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#6b1e28"; ctx.fillRect(0, 0, W, headH);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#e8cf8f";
+  ctx.font = `bold 26px ${MINCHO}`;
+  ctx.fillText(`${y ? bashoNameOf(y, m) : ""} ${dayKanji(day)} リザルト`, W / 2, 36);
+  ctx.font = `15px ${MINCHO}`;
+  ctx.fillText(`${currentTitleName()} ${G.profile.shikona}`, W / 2, 66);
+  // 成績サマリ（的中率と収支）
+  ctx.fillStyle = "#3a2c22";
+  ctx.font = `bold 22px ${MINCHO}`;
+  ctx.fillText(`的中 ${log.hits}／${log.bets}番（的中率${rate}%）`, W / 2, headH + 32);
+  ctx.fillStyle = log.net >= 0 ? "#2e7d4f" : "#b23b3b";
+  ctx.font = `bold 26px ${MINCHO}`;
+  ctx.fillText(`収支 ${log.net >= 0 ? "+" : ""}${fmt(log.net)}合`, W / 2, headH + 68);
+  ctx.strokeStyle = "#c9a24b"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(30, headH + statsH - 6); ctx.lineTo(W - 30, headH + statsH - 6); ctx.stroke();
+  // 賭けの箇条書き
+  ctx.textAlign = "left";
+  lines.forEach((l, i) => {
+    const ly = headH + statsH + i * rowH + rowH / 2;
+    ctx.font = `bold 17px ${MINCHO}`;
+    ctx.fillStyle = l.color;
+    ctx.fillText(l.mark, 34, ly);
+    ctx.font = `15px ${MINCHO}`;
+    ctx.fillStyle = "#3a2c22";
+    ctx.fillText(l.text, 58, ly, W - 92); // maxWidthで自動縮小し、はみ出しを防ぐ
+  });
+  // フッター
+  ctx.textAlign = "center";
+  ctx.strokeStyle = "#c9a24b";
+  ctx.beginPath(); ctx.moveTo(30, H - footH + 12); ctx.lineTo(W - 30, H - footH + 12); ctx.stroke();
+  ctx.fillStyle = "#6b1e28";
+  ctx.font = `bold 20px ${MINCHO}`;
+  ctx.fillText("#トト相撲", W / 2, H - footH / 2 + 4);
+  return cv;
+}
+async function onDayResultImage(day) {
+  const cv = drawDayResultImage(day);
+  if (!cv) { showToast("⚠ 画像生成に失敗", "この環境ではCanvasが使えないようです"); return; }
+  await shareOrShowImage(cv, `result_${G.bashoKey || "basho"}_day${day}.png`, `${dayKanji(day)}リザルト #トト相撲`);
 }
 
 // ---------------- 場所予想タブ ----------------
