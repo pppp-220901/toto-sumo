@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-18T07:27:11.680Z",
+ "updatedAt": "2026-07-18T07:37:27.716Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -279,6 +279,10 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "平幕・獅司が初黒星 7日目で幕内全勝消える 錦富士に完敗「下から手が…対応できなかった」 スポニチアネックス 2026/7/18 16:32",
+   "u": "https://news.yahoo.co.jp/articles/10bee909b22be785c97482a25e7995cf6a5a641d"
+  },
+  {
    "t": "“イケメン幕下”大森 勝ち越し王手の３勝目 巨漢に上手出し投げで「自分の形にすることが出来た」 スポーツ報知 2026/7/18 16:24",
    "u": "https://news.yahoo.co.jp/articles/4174124c416f3e01686310de6f6b4fc441e6f4cf"
   },
@@ -293,10 +297,6 @@
   {
    "t": "好調から暗転の若ノ勝が右膝負傷で休場、師匠の湊川親方「捲土重来、必ず返り咲く」【大相撲】 デイリースポーツ 2026/7/18 15:01",
    "u": "https://news.yahoo.co.jp/articles/916c7891a6187c421d88288ec8fd314dd0f5e106"
-  },
-  {
-   "t": "「どうですかね？」イケメン力士大森、初のびんづけ油でオールバック 相撲は完勝で勝ち越し王手 日刊スポーツ 2026/7/18 14:54",
-   "u": "https://news.yahoo.co.jp/articles/f75c112b068e4de125c96ac00bd74d4bd38a5446"
   }
  ],
  "awards": null,
@@ -1304,15 +1304,15 @@
    {
     "e": "若ノ勝",
     "w": "金峰山",
-    "k": null,
-    "win": null,
-    "fusen": false
+    "k": "不戦",
+    "win": "w",
+    "fusen": true
    },
    {
     "e": "朝白龍",
     "w": "大青山",
-    "k": null,
-    "win": null,
+    "k": "寄り切り",
+    "win": "w",
     "fusen": false
    },
    {
