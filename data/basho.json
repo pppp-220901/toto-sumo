@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-18T09:30:20.040Z",
+ "updatedAt": "2026-07-18T09:40:36.571Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -279,6 +279,14 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "綱とり霧島、1敗守る 大の里は白星先行―大相撲名古屋場所7日目 時事通信 2026/7/18 18:38",
+   "u": "https://news.yahoo.co.jp/articles/5982a5837a7692467dbbbb679b2ac1ec58bcda92"
+  },
+  {
+   "t": "「41歳でこれやる？」玉鷲、全勝の白熊を“一撃”で戦闘不能状態に… 激しすぎる攻めに「容赦ない」「圧倒的」ファン驚嘆 ABEMA TIMES 2026/7/18 18:36",
+   "u": "https://news.yahoo.co.jp/articles/f0bd2e59232574edfaef9c597849ea8a037bb3ff"
+  },
+  {
    "t": "大の里、前日金星の伯乃富士を電車道で圧倒して３連勝「冬眠していた化け物が目覚めた」の声 日刊スポーツ 2026/7/18 18:26",
    "u": "https://news.yahoo.co.jp/articles/eb4d92e775ffd9747762c94aec103de2ed076fee"
   },
@@ -289,14 +297,6 @@
   {
    "t": "両横綱は勝つ 綱取りの霧島、大関復帰目指す安青錦はともに６勝目 カド番の琴桜は４敗目 勝ちっ放しは消え、１敗は霧島ら７人 スポーツ報知 2026/7/18 18:05",
    "u": "https://news.yahoo.co.jp/articles/4cdf0ce27bd2745bb248115ef09cb96a9c3ce1ee"
-  },
-  {
-   "t": "横綱大の里が伯乃富士を圧倒、４勝３敗と白星先行 横綱豊昇龍は豪快なすくい投げで平戸海を下す デイリースポーツ 2026/7/18 18:01",
-   "u": "https://news.yahoo.co.jp/articles/f4efb22040c71041566e0e5c7f93c07ec882a5c5"
-  },
-  {
-   "t": "豊昇龍が５勝目 平戸海に勝ち連敗回避 横綱初優勝にはもう負けられない スポーツ報知 2026/7/18 17:55",
-   "u": "https://news.yahoo.co.jp/articles/39cc2a1cec2a368ec8c565eafd2f511b177f4c9c"
   }
  ],
  "awards": null,
