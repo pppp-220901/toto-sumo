@@ -2179,12 +2179,8 @@ function startA11yObserver() {
 // ---------------- 遊び方チュートリアル（本場所モード） ----------------
 // ・初めて本場所モードに入ったとき自動表示（既読は端末単位=localStorage、DBには保存しない）
 // ・「？」ボタン（並び替えの隣）でいつでも再表示
-// ・本当の初心者（ベット経験ゼロ）には、取組一覧を懸賞一番だけに絞って
-//   「まず1回賭けてみる」ところまで誘導する
 const TUT_SEEN_KEY = "toto-sumo-honbasho-tutorial-seen";
-const KENSHO_TUT_KEY = "toto-sumo-first-bet-done";
 let tutAutoShown = false;       // 同一セッションで自動表示を繰り返さない
-let kenshoTutWasActive = false; // このセッションで絞り込み表示を見たか（初ベット祝いの判定用）
 let tutSlide = 0;
 let tutTouchX = null;
 const TUT_SLIDES = [
@@ -2236,21 +2232,6 @@ function tutTouchEnd(e) {
 function closeTutorial() {
   localStorage.setItem(TUT_SEEN_KEY, "1");
   closeModal();
-  renderTorikumi();
-}
-// 初心者向け「懸賞一番だけ表示」モードが有効か
-// ・この端末で初ベット済みなら無効 / ベット経験があれば無効（別端末のベテランを含む）
-// ・懸賞一番が受付中のときだけ有効（締切後に何も賭けられない事故を防ぐ）
-function kenshoTutorialActive(day) {
-  if (localStorage.getItem(KENSHO_TUT_KEY)) return false;
-  if ((G.stats.totalBets || 0) > 0 || (G.ewBets || []).length > 0) return false;
-  const dd = SIM && SIM.days[day];
-  if (!dd) return false;
-  const ki = dd.torikumi.findIndex(bt => bt.kensho);
-  return ki >= 0 && boutState(day, ki) === "open";
-}
-function skipKenshoTutorial() {
-  localStorage.setItem(KENSHO_TUT_KEY, "1");
   renderTorikumi();
 }
 
@@ -2398,13 +2379,6 @@ function renderTorikumi() {
   if (G.finishedProcessed) { el.innerHTML = configWarning() + offseasonHTML(info); return; }
 
   const day = info.current.day, hm = info.now.hm;
-  // 初ベットの検知: 絞り込み表示を卒業させ、このセッションで見ていた場合は祝う
-  if (!localStorage.getItem(KENSHO_TUT_KEY) && ((G.stats.totalBets || 0) > 0 || (G.ewBets || []).length > 0)) {
-    localStorage.setItem(KENSHO_TUT_KEY, "1");
-    if (kenshoTutWasActive) showToast("🎉 初めての張り、あっぱれ！", "全取組が解放されました。千秋楽まで米を増やそう");
-  }
-  const kenshoTut = kenshoTutorialActive(day);
-  if (kenshoTut) kenshoTutWasActive = true;
   const modeBanner = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
       <span class="muted" style="font-size:12px">${DATA_MODE === "real" ? "🛰 実データ連動中（場所中は約10分間隔で自動更新）" : "🎲 シミュレーションモード（実データ未取得）"}</span>
@@ -2445,23 +2419,8 @@ function renderTorikumi() {
     }
     // デフォルト: 受付中の取組が残っていれば開、全取組終了なら閉
     const openToday = UI.accToday !== undefined ? UI.accToday : openCount > 0;
-    let cards;
-    if (kenshoTut) {
-      // 初心者チュートリアル: 懸賞一番だけに絞り、最初の1ベットまで誘導する
-      const ki = dd.torikumi.findIndex(bt => bt.kensho);
-      cards = `
-        <div class="note" style="border:2px solid var(--gold);background:#fff8ea;margin-bottom:8px;line-height:1.9">
-          📖 <b>チュートリアル</b>：まずは<b>🚩懸賞一番</b>（オッズ×3の大盤振る舞い）に賭けてみよう！<br>
-          勝ちそうな力士の名前をタップ → 金額を入れて確定。これで入門完了だ。
-        </div>`
-        + boutCardHTML(dd.torikumi[ki], ki, day)
-        + `<div class="center" style="margin-top:6px">
-            <button class="btn btn-ghost btn-sm" onclick="skipKenshoTutorial()">チュートリアルを飛ばして全取組を表示</button>
-          </div>`;
-    } else {
-      cards = ewCardHTML(day);
-      displayOrder(day).forEach(i => { cards += boutCardHTML(dd.torikumi[i], i, day); });
-    }
+    let cards = ewCardHTML(day);
+    displayOrder(day).forEach(i => { cards += boutCardHTML(dd.torikumi[i], i, day); });
     html += `
     <details class="acc" ${openToday ? "open" : ""} ontoggle="UI.accToday=this.open">
       <summary class="day-banner">💪 ${dayKanji(day)} 取組・結果
@@ -2475,8 +2434,7 @@ function renderTorikumi() {
   }
 
   // 翌日の前売り（18:00以降）— アコーディオン（デフォルト開）
-  // チュートリアル中（懸賞一番のみ表示）は情報量を絞るため前売りも非表示
-  if (!kenshoTut && hm >= NEXT_OPEN_HM && day < 15 && !G.finishedProcessed) {
+  if (hm >= NEXT_OPEN_HM && day < 15 && !G.finishedProcessed) {
     if (SIM.days[day + 1]) {
       const openTmr = UI.accTomorrow !== undefined ? UI.accTomorrow : true;
       let cards = ewCardHTML(day + 1);
@@ -4093,7 +4051,7 @@ async function onbStart(btn) {
     renderAll();
     if (wantsAccount && !linkedOk) showToast("⚠ ログインID未設定", "通信状況によりスキップされました。プロフィール画面から後で設定できます");
     showToast("🥁 入門の儀 完了", `${UI.onb.ichimon}一門・${name} 関の誕生だ！`);
-    showBeginnerGuide();
+    // 遊び方の説明は renderTorikumi() が自動表示するチュートリアル（6スライド）に一本化
   } catch (e) {
     console.error("入門の儀に失敗しました:", e);
     alert("エラーが発生しました。お手数ですが、もう一度お試しください。（" + (e && e.message || e) + "）");
@@ -4102,23 +4060,7 @@ async function onbStart(btn) {
   }
 }
 
-// 親方の心得（入門直後のチュートリアル）
-function showBeginnerGuide() {
-  openModal(`
-    <h2 style="color:var(--maroon)">👹 親方の心得</h2>
-    <div style="background:#fff;border:2px solid var(--maroon);border-radius:12px;padding:14px;font-size:14px;line-height:2">
-      「よう来たな、新弟子。トト相撲の稽古をつけてやろう。<br><br>
-      一、初日は<b>🚩懸賞のかかった一番</b>（<b>オッズ3倍</b>）と<b>⚖東西対抗戦</b>がオススメじゃ。東西対抗は<b>勝ち数の差がそのまま倍率</b>になる、大差で勝つほど実入りも良い。<br><br>
-      一、取組は<b>各組の直前まで</b>受付。オッズは力士の調子で毎日動く生き物じゃ。<br><br>
-      一、<b>🍲ちゃんこ</b>と<b>📖相撲クイズ</b>は毎日タダで米が増える。忘れるでない。<br><br>
-      一、腕に覚えが出てきたら「場所予想」の<b>優勝予想</b>じゃ。早く当てるほど、千秋楽の持ち米が<b>丸ごと倍</b>になる大勝負よ。<br><br>
-      米が尽きたら……まあ、その時はわしに任せい。」
-    </div>
-    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();tutAutoShown=false;playPendingModals();renderAll();setTimeout(()=>oyakataSay('beginner'),800)">🥁 稽古開始！</button>
-  `);
-}
-// ※ tutAutoShown=false: 入門の儀の途中でチュートリアルの自動表示が一度発火して
-//   この心得モーダルに上書きされた場合でも、閉じた後に改めて自動表示されるようにする
+// （旧「親方の心得」モーダルは、6スライドの遊び方チュートリアルに統合したため廃止）
 
 // タブを閉じる/バックグラウンドに回す直前に、デバウンス待ち中の同期があれば
 // 即座にフラッシュしておく（優勝予想の確定などの直後にタブを閉じた場合に、
