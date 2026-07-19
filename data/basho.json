@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-19T07:28:14.826Z",
+ "updatedAt": "2026-07-19T07:38:31.318Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -284,6 +284,14 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "相撲協会、中京大と連携協定締結 文化発展目的に 共同通信 2026/7/19 16:37",
+   "u": "https://news.yahoo.co.jp/articles/9fa8e58a59130afb5627d4c0ad93ea123c2bdee8"
+  },
+  {
+   "t": "“はたき込み“が得意の友風が“はたき込み“に沈んで２勝６敗 「よく分からなかったです」 スポーツ報知 2026/7/19 16:29",
+   "u": "https://news.yahoo.co.jp/articles/f5bbf9696f958821a7ea1a1113f6baaec355b0ec"
+  },
+  {
    "t": "日本相撲協会、中京大＆実践女子大と連携協定 八角理事長「若い人の感性」を歓迎 スポーツ報知 2026/7/19 16:18",
    "u": "https://news.yahoo.co.jp/articles/0bea96f78c8848769974469f78d102ece078871b"
   },
@@ -294,14 +302,6 @@
   {
    "t": "炎鵬が逆転のすくい投げで大歓声を浴びる ４勝４敗から後半のカギは「辛抱ですね」 日刊スポーツ 2026/7/19 16:03",
    "u": "https://news.yahoo.co.jp/articles/830205931ce1a08b2f17226fcbd0b1e4e2370a90"
-  },
-  {
-   "t": "日本相撲協会が中京大、実践女子大とコラボ グッズデザイン、ボランティア活動など展開 日刊スポーツ 2026/7/19 16:02",
-   "u": "https://news.yahoo.co.jp/articles/4a2a4b550adde238d8bf961ce7e5fbb54210b4e0"
-  },
-  {
-   "t": "元十両の幕下・大花竜が勝ち越しに王手 「場所前は調子が良くなかったがいまのところは体が動いている」 スポーツ報知 2026/7/19 15:46",
-   "u": "https://news.yahoo.co.jp/articles/a200a1241266c177dc46da79126f18197181f5f3"
   }
  ],
  "awards": null,
@@ -1451,15 +1451,15 @@
    {
     "e": "阿炎",
     "w": "千代翔馬",
-    "k": null,
-    "win": null,
+    "k": "押し出し",
+    "win": "e",
     "fusen": false
    },
    {
     "e": "朝乃山",
     "w": "阿武剋",
-    "k": null,
-    "win": null,
+    "k": "寄り切り",
+    "win": "e",
     "fusen": false
    },
    {
