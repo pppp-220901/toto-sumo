@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-19T09:41:55.413Z",
+ "updatedAt": "2026-07-19T09:52:12.807Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -285,6 +285,10 @@
  "injuredCarry": [],
  "news": [
   {
+   "t": "大の里４連勝 ２日連続の電車道で王鵬圧倒 元若乃花「戦車ですよ」後半優勝争いに期待 日刊スポーツ 2026/7/19 18:41",
+   "u": "https://news.yahoo.co.jp/articles/14e33dc7b56009a91b35973d214c58ba50a6a499"
+  },
+  {
    "t": "上位陣、初めて安泰 1敗は綱とり霧島ら4人―大相撲名古屋場所8日目 時事通信 2026/7/19 18:37",
    "u": "https://news.yahoo.co.jp/articles/dede84a44eb05155a50252515be5169987b98f8c"
   },
@@ -299,10 +303,6 @@
   {
    "t": "大の里は王鵬を寄り切り５勝、豊昇龍は大栄翔を押し出し６勝…中日終え首位は１敗の４人 読売新聞オンライン 2026/7/19 18:10",
    "u": "https://news.yahoo.co.jp/articles/11bc14063e5a4be260c4fe5c314ca5bec56dfb0c"
-  },
-  {
-   "t": "安青錦が１敗守るも左足負傷か 大関復帰まで残り３勝も「足大丈夫か」と心配の声 日刊スポーツ 2026/7/19 18:10",
-   "u": "https://news.yahoo.co.jp/articles/4cf3dab20daba6ee3bec106fe21fd3f3cb0cf862"
   }
  ],
  "awards": null,
