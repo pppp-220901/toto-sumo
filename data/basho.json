@@ -1,6 +1,6 @@
 {
  "bashoKey": "2026-07",
- "updatedAt": "2026-07-19T08:19:38.724Z",
+ "updatedAt": "2026-07-19T08:29:55.530Z",
  "source": "sports.yahoo.co.jp/sumo",
  "banzuke": [
   {
@@ -1388,15 +1388,15 @@
    {
     "e": "隆の勝",
     "w": "安青錦",
-    "k": null,
-    "win": null,
+    "k": "押し出し",
+    "win": "w",
     "fusen": false
    },
    {
     "e": "義ノ富士",
     "w": "藤ノ川",
-    "k": null,
-    "win": null,
+    "k": "外掛け",
+    "win": "e",
     "fusen": false
    },
    {
