@@ -1,30 +1,26 @@
-name: update sumo data
+name: update sumo news
 
-# 本場所データの自動取得。個人利用の範囲で「1日3回」に限定する。
-# （取組時間中の10分間隔ライブ更新は廃止。取組の結果は次回の定時取得でまとめて反映される）
+# 【手動運用】取組・番付・優勝三賞は「取組結果登録ツール」で手動登録する。
+# このワークフローが自動で更新するのは大相撲ニュース見出しだけ（GoogleニュースRSS）。
+# 手動登録との衝突を避けるため、取組結果を手で入れる夜の時間帯を外し、
+# 1日1回・朝（JST 07:15）だけ実行する。news 以外のフィールドには触れない。
 #
-# GitHub Actions の cron は UTC 表記。JST(=UTC+9) との対応は下記のとおり。
-#   JST 18:15 → UTC 09:15   （その日の全取組が終わった後）
-#   JST 19:15 → UTC 10:15   （取りこぼしの追い取得）
-#   JST 08:15 → UTC 23:15   （前日）  （翌朝・翌日の取組カード発表の取り込み）
+# GitHub Actions の cron は UTC 表記。JST 07:15 = UTC 22:15（前日）。
 
 on:
   schedule:
-    - cron: "15 9 * * *"    # JST 18:15
-    - cron: "15 10 * * *"   # JST 19:15
-    - cron: "15 23 * * *"   # JST 翌 08:15
+    - cron: "15 22 * * *"   # JST 翌 07:15
   workflow_dispatch: {}      # 「Actions」タブから手動実行も可能
 
-# 直近の実行が走っている間は重複起動しない
 concurrency:
-  group: update-sumo-data
+  group: update-sumo-news
   cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  fetch:
+  news:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,17 +31,22 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Fetch basho data
+      - name: Fetch news
         run: node scraper/fetch_basho.mjs
 
       - name: Commit if changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain data/basho.json)" ]; then
-            git add data/basho.json
-            git commit -m "update sumo data ($(date -u +%Y-%m-%dT%H:%MZ))"
-            git push
-          else
+          # 手動更新と競合してpushが弾かれたら、最新を取り込んでニュースだけ再適用
+          git add data/basho.json
+          if git diff --cached --quiet; then
             echo "変更なし。コミットをスキップします。"
+            exit 0
           fi
+          git commit -m "update sumo news ($(date -u +%Y-%m-%dT%H:%MZ))"
+          for i in 1 2 3; do
+            if git push; then break; fi
+            echo "push失敗。最新を取り込んで再試行 ($i)"
+            git pull --rebase --autostash || true
+          done
