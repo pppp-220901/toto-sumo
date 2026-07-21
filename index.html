@@ -3561,12 +3561,12 @@ function renderBashoTab() {
   const starRows = standings.slice(0, 10).map((r2, i) =>
     `<tr><td>${i + 1}</td><td style="text-align:left"><b>${esc(r2.name)}</b> <span class="muted">${rankLabel(r2.rank)}</span></td><td>${SIM.rikishi[r2.id].wins}勝${SIM.rikishi[r2.id].losses}敗</td></tr>`).join("");
 
-  // 大相撲ニュース（予想のヒント・スポナビ経由）
+  // 大相撲ニュース（予想のヒント・Googleニュース「大相撲」より）
   let newsCard = "";
   if (DATA_MODE === "real" && REAL && REAL.news && REAL.news.length) {
     newsCard = `<div class="card"><h3>📰 大相撲ニュース
       <button class="btn btn-ghost btn-sm" onclick="onNewsRefresh(this)" style="float:right">↻ 更新</button></h3>
-      <div class="note">予想のヒントに。見出しをタップすると記事が開きます（Yahoo!ニュース）。</div>
+      <div class="note">予想のヒントに。見出しをタップすると記事が開きます（Googleニュース「大相撲」より）。</div>
       ${REAL.news.map(n => `<div class="result-line"><a href="${esc(n.u)}" target="_blank" rel="noopener" style="color:var(--maroon);text-decoration:none;font-size:13px;line-height:1.7">▸ ${esc(n.t)}</a></div>`).join("")}
     </div>`;
   }
