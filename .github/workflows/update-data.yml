@@ -1,62 +1,51 @@
-# トト相撲 — 取組データ自動更新（.github/workflows/update-data.yml に配置）
-# どのトリガーで起動しても、JST 14:50〜19:00 の間なら10分毎のライブループになる
-# （GitHubのcron遅延・間引き対策。起動さえすればループが成立する）
 name: update sumo data
+
+# 本場所データの自動取得。個人利用の範囲で「1日3回」に限定する。
+# （取組時間中の10分間隔ライブ更新は廃止。取組の結果は次回の定時取得でまとめて反映される）
+#
+# GitHub Actions の cron は UTC 表記。JST(=UTC+9) との対応は下記のとおり。
+#   JST 18:15 → UTC 09:15   （その日の全取組が終わった後）
+#   JST 19:15 → UTC 10:15   （取りこぼしの追い取得）
+#   JST 08:15 → UTC 23:15   （前日）  （翌朝・翌日の取組カード発表の取り込み）
 
 on:
   schedule:
-    - cron: "45 5 * * *"   # JST 14:45 ライブループ起動狙い（千秋楽の前倒しにも対応）
-    - cron: "50 6 * * *"   # JST 15:50 予備の起動
-    - cron: "15 10 * * *"  # JST 19:15 最終確定
-    - cron: "15 23 * * *"  # JST 翌朝8:15 翌日取組の取りこぼし回収
-    - cron: "5 0-5 * * *"  # JST 9:05〜14:05 毎時（ニュース鮮度維持）
-  workflow_dispatch: {}
+    - cron: "15 9 * * *"    # JST 18:15
+    - cron: "15 10 * * *"   # JST 19:15
+    - cron: "15 23 * * *"   # JST 翌 08:15
+  workflow_dispatch: {}      # 「Actions」タブから手動実行も可能
+
+# 直近の実行が走っている間は重複起動しない
+concurrency:
+  group: update-sumo-data
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
-concurrency:
-  group: update-data
-  cancel-in-progress: false
-
 jobs:
-  update:
+  fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v5
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "20"
 
-      - name: fetch (取組時間帯は自動でライブループ)
+      - name: Fetch basho data
+        run: node scraper/fetch_basho.mjs
+
+      - name: Commit if changed
         run: |
-          git config user.name "toto-sumo-bot"
-          git config user.email "actions@users.noreply.github.com"
-
-          fetch_once() {
-            node scraper/fetch_basho.mjs || true
-            git add data/basho.json || true
-            if git diff --cached --quiet; then
-              echo "変更なし"
-            else
-              git commit -m "data: $(TZ=Asia/Tokyo date +'%m-%d %H:%M')"
-              git pull --rebase origin main || true
-              git push || true
-            fi
-          }
-
-          HM=$(TZ=Asia/Tokyo date +%H%M)
-          if [ "$HM" -ge 1450 ] && [ "$HM" -lt 1900 ]; then
-            echo "===== ライブループ開始（〜19:00 JST・10分間隔） ====="
-            while [ "$(TZ=Asia/Tokyo date +%H%M)" -lt 1900 ]; do
-              echo "== cycle $(TZ=Asia/Tokyo date +'%H:%M') =="
-              fetch_once
-              sleep 600
-            done
-            echo "== 最終サイクル =="
-            fetch_once
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain data/basho.json)" ]; then
+            git add data/basho.json
+            git commit -m "update sumo data ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
           else
-            fetch_once
+            echo "変更なし。コミットをスキップします。"
           fi
