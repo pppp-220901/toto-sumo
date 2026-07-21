@@ -2,15 +2,23 @@ name: update sumo news
 
 # 【手動運用】取組・番付・優勝三賞は「取組結果登録ツール」で手動登録する。
 # このワークフローが自動で更新するのは大相撲ニュース見出しだけ（GoogleニュースRSS）。
-# 手動登録との衝突を避けるため、取組結果を手で入れる夜の時間帯を外し、
-# 1日1回・朝（JST 07:15）だけ実行する。news 以外のフィールドには触れない。
+# news フィールド以外には触れないので、手動登録した取組・番付・優勝三賞は保持される。
 #
-# GitHub Actions の cron は UTC 表記。JST 07:15 = UTC 22:15（前日）。
+# 1日5回（朝・昼・夕方・取組後・夜）取得する。手動登録（夜）と時間帯が重なっても、
+# 「最新を取り込んでからニュースだけ載せ直す」ため、取組データを壊さない。
+#
+# GitHub Actions の cron は UTC 表記。JST(=UTC+9) との対応:
+#   UTC 23:00(前日) = JST 08:00 / UTC 06:00 = JST 15:00 / UTC 09:00 = JST 18:00
+#   UTC 10:00       = JST 19:00（取組後）/ UTC 13:00 = JST 22:00
 
 on:
   schedule:
-    - cron: "15 22 * * *"   # JST 翌 07:15
-  workflow_dispatch: {}      # 「Actions」タブから手動実行も可能
+    - cron: "0 23 * * *"   # JST 08:00
+    - cron: "0 6 * * *"    # JST 15:00
+    - cron: "0 9 * * *"    # JST 18:00
+    - cron: "0 10 * * *"   # JST 19:00（取組後）
+    - cron: "0 13 * * *"   # JST 22:00
+  workflow_dispatch: {}
 
 concurrency:
   group: update-sumo-news
@@ -31,22 +39,22 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Fetch news
-        run: node scraper/fetch_basho.mjs
-
-      - name: Commit if changed
+      - name: Fetch news & commit (最新を取り込んで news だけ載せ直す)
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 手動更新と競合してpushが弾かれたら、最新を取り込んでニュースだけ再適用
-          git add data/basho.json
-          if git diff --cached --quiet; then
-            echo "変更なし。コミットをスキップします。"
-            exit 0
-          fi
-          git commit -m "update sumo news ($(date -u +%Y-%m-%dT%H:%MZ))"
           for i in 1 2 3; do
-            if git push; then break; fi
+            # 手動コミットなど最新の変更を取り込んでから news を上書きする
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+            node scraper/fetch_basho.mjs
+            git add data/basho.json
+            if git diff --cached --quiet; then
+              echo "変更なし。コミットをスキップします。"
+              exit 0
+            fi
+            git commit -m "update sumo news ($(date -u +%Y-%m-%dT%H:%MZ))"
+            if git push; then exit 0; fi
             echo "push失敗。最新を取り込んで再試行 ($i)"
-            git pull --rebase --autostash || true
+            git reset --soft HEAD~1
           done
+          echo "3回試行しても push できませんでした（次回スケジュールで再取得）。"
