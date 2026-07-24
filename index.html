@@ -1607,6 +1607,8 @@ async function announceBanzuke() {
   if (G.lastResult) {
     G.lastResult.banzuke = { level: bz.level, levelName: bz.levelName, pos: bz.pos, total: bz.total };
     G.lastResult.article = buildBashoArticle(bz, leaders);
+    // 発表モーダルを後から何度でも再表示するため、上位表を含めて保存しておく
+    G.lastResult.banzukeFull = { level: bz.level, levelName: bz.levelName, pos: bz.pos, total: bz.total, table: (bz.table || []).slice(0, 5) };
   }
   // 来場所の初期持ち米を確定: 固定15,000合＋編成会議ボーナス（新番付に応じて加算）
   // オフシーズン中のちゃんこ・クイズ・番付予想ボーナスはこの上に積み上がる
@@ -2820,7 +2822,7 @@ function showBashoResult() {
       市場価値 <b>${fmt(yen)}円</b>（令和8年物価）<br>
       ${r.ichimonWin ? `<span class="hit">🎉 ${esc(G.profile.ichimon)}一門 的中率1位！祝勝会ボーナス×1.1</span>` : `<span class="muted">一門的中率1位：${esc(r.topIchimon)}一門</span>`}
     </div>
-    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll()">場所納め</button>
+    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll()">謹んでお受けいたします</button>
   `);
 }
 
@@ -2891,7 +2893,7 @@ function showBanzukeModal(bz) {
       <p style="font-size:13px;line-height:2;margin-top:6px">${esc(r.article.body)}</p>
     </div>` : ""}
     ${conv}
-    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll()">謹んでお受けします</button>
+    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll()">謹んでお受けいたします</button>
   `);
   oyakataSay(bz.level >= 5 ? "win" : "lose");
 }
@@ -2922,11 +2924,22 @@ function renderSougou() {
   } else if (!G.banzukeAnnounced) {
     // 千秋楽打ち止め〜水曜10:00の編成会議まで
     const r = G.lastResult;
+    const rate = r.bets ? Math.round(r.hits / r.bets * 100) : 0;
     html += `
-      <div class="card"><h3>📢 総合発表</h3>
-        <div class="center" style="line-height:2.3;padding:8px 0">
-          ${esc(r.bashoName)} 優勝：<b>${esc(r.champion)}</b><br>
-          あなたの成績：${r.bets}ベット ${r.hits}的中・最終持ち米 <b>${fmt(r.finalPoints)}合</b><br>
+      <div class="card"><h3>🏁 千秋楽までの成績</h3>
+        <div class="center" style="line-height:2.2;padding:6px 0 2px">
+          ${esc(r.bashoName)} 優勝：<b>${esc(r.champion)}</b>
+        </div>
+        <div class="center" style="display:flex;align-items:center;justify-content:center;gap:16px;margin:8px 0">
+          <canvas id="sougou-hitchart" width="140" height="140" style="width:120px;height:120px"></canvas>
+          <div style="text-align:left;line-height:2">
+            的中率 <b style="font-size:20px;color:var(--maroon)">${rate}%</b><br>
+            <span class="muted">${r.bets}ベット中 ${r.hits}的中</span><br>
+            最終持ち米 <b style="color:var(--maroon)">${fmt(r.finalPoints)}合</b>
+          </div>
+        </div>
+        <div class="note">🏵 優勝・三賞ボーナスのスコアへの反映と、正式なトト番付の発表は、<b>トト番付編成会議</b>をお待ちください。</div>
+        <div class="center" style="line-height:2.1;margin-top:6px">
           📜 <b>トト番付編成会議</b>は ${sched.sougouMs ? fmtDateJa(sched.sougouMs) : "千秋楽3日後の水曜"} 10:00<br>
           <span class="muted">発表までスコアは凍結・ちゃんこ/クイズもお休みです</span>
         </div>
@@ -2959,6 +2972,7 @@ function renderSougou() {
           現在の持ち米 <b style="font-size:17px;color:var(--maroon)">${fmt(G.points)}合</b>
           <span class="muted" style="font-size:11px">（番付予想の的中ボーナスで上積みできます。ちゃんこ・クイズは本場所中のみ）</span>
         </div>
+        ${G.lastResult && G.lastResult.banzukeFull ? `<button class="btn btn-ghost btn-wide" style="margin-top:8px" onclick="reShowBanzuke()">📜 トト番付発表をもう一度見る</button>` : ""}
         <div class="center" style="margin-top:8px">${count}</div>
       </div>`;
   }
@@ -2988,6 +3002,38 @@ function renderSougou() {
 
   // ちゃんこ・クイズはオフシーズン中は休止（オフの稼ぎで番付経済が崩れるのを防ぐ）
   el.innerHTML = html;
+  // 千秋楽までの成績カードの的中率・円グラフ（innerHTML確定後に描画）
+  if (G.lastResult && !G.banzukeAnnounced) drawBashoHitChart("sougou-hitchart", G.lastResult.hits, G.lastResult.bets);
+}
+
+// 的中率の円グラフ（ドーナツ）。指定canvasに 的中/不的中 を描く
+function drawBashoHitChart(id, hits, bets) {
+  const cv = document.getElementById(id);
+  if (!cv || !cv.getContext) return;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return;
+  const cx = 70, cy = 70, R = 60, r = 38;
+  ctx.clearRect(0, 0, 140, 140);
+  const arc = (from, to, color) => {
+    ctx.beginPath(); ctx.arc(cx, cy, R, from, to); ctx.arc(cx, cy, r, to, from, true);
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+  };
+  const total = bets || 0;
+  if (total === 0) { arc(0, Math.PI * 2, "#e3dac0"); }
+  else {
+    const hitEnd = -Math.PI / 2 + Math.PI * 2 * (hits / total);
+    arc(-Math.PI / 2, hitEnd, "#6b1e28");          // 的中（えんじ）
+    arc(hitEnd, -Math.PI / 2 + Math.PI * 2, "#e3dac0"); // 不的中
+  }
+  const rate = total ? Math.round(hits / total * 100) : 0;
+  ctx.fillStyle = "#6b1e28"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "bold 22px serif"; ctx.fillText(rate + "%", cx, cy - 4);
+  ctx.font = "10px sans-serif"; ctx.fillStyle = "#8a7a60"; ctx.fillText("的中率", cx, cy + 16);
+}
+
+// 番付編成会議の発表をもう一度見る（総合発表タブのボタンから何度でも）
+function reShowBanzuke() {
+  if (G.lastResult && G.lastResult.banzukeFull) showBanzukeModal(G.lastResult.banzukeFull);
 }
 
 // ---------------- 番付予想タブ（オフシーズン） ----------------
@@ -3137,7 +3183,7 @@ function showYosouResultModal(r) {
       ボーナス <b style="font-size:18px;color:var(--maroon)">+${fmt(r.bonus)}合</b>
     </div>
     <div class="note">詳しい答え合わせは「番付予想」タブでいつでも見られます。</div>
-    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll()">ありがたく頂戴する</button>
+    <button class="btn btn-gold btn-wide" style="margin-top:12px" onclick="closeModal();playPendingModals();renderAll()">謹んでお受けいたします</button>
   `);
 }
 
